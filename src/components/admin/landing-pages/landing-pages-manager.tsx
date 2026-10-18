@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import {
   Archive,
   BarChart3,
@@ -10,6 +10,7 @@ import {
   Eye,
   FileText,
   Link2,
+  Loader2,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -18,6 +19,11 @@ import {
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  createLandingPage,
+  duplicateLandingPage,
+  setLandingPageStatus,
+} from "@/app/(admin)/admin/landing-pages/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,19 +47,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LandingStatusBadge, StatusPill } from "@/components/admin/status-badge";
 import { StatCard } from "@/components/admin/page-header";
-import type { MockLandingPage } from "@/lib/mock/admin";
-import type { MockProduct } from "@/lib/mock/catalog";
+import type { AdminLandingPage } from "@/lib/admin/types";
 import { formatCompact, formatDate } from "@/lib/format";
+import { landingTemplates, type LandingTemplate } from "@/lib/landing/templates";
 import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-const templates = {
-  "bengali-longform": { label: "Bengali long-form", icon: FileText, body: "Hero, benefits, reviews, FAQ, countdown & checkout." },
-  minimal: { label: "Minimal", icon: ShoppingCart, body: "Product hero + offers + checkout. Fast to launch." },
-  "video-first": { label: "Video first", icon: Video, body: "Facebook-ad style video hero with sticky order button." },
-} as const;
-
-type Template = keyof typeof templates;
+const templateIcons: Record<LandingTemplate, typeof FileText> = {
+  "bengali-longform": FileText,
+  minimal: ShoppingCart,
+  "video-first": Video,
+};
 
 const slugify = (s: string) =>
   s
@@ -63,25 +67,16 @@ const slugify = (s: string) =>
     .replace(/[\s_]+/g, "-")
     .replace(/-+/g, "-");
 
-export function LandingPagesManager({
-  pages: initial,
-  products,
-}: {
-  pages: MockLandingPage[];
-  products: Pick<MockProduct, "id" | "name" | "price" | "compareAtPrice">[];
-}) {
-  const [pages, setPages] = useState(initial);
-  const [filter, setFilter] = useState<"ALL" | MockLandingPage["status"]>("ALL");
+type ProductOption = { id: string; name: string; price: number };
+
+export function LandingPagesManager({ pages, products }: { pages: AdminLandingPage[]; products: ProductOption[] }) {
+  const [filter, setFilter] = useState<"ALL" | AdminLandingPage["status"]>("ALL");
 
   const live = pages.filter((p) => p.status === "PUBLISHED");
   const views = pages.reduce((n, p) => n + p.viewCount, 0);
   const conversions = pages.reduce((n, p) => n + p.conversionCount, 0);
   const revenue = pages.reduce((n, p) => n + p.revenue, 0);
   const visible = filter === "ALL" ? pages : pages.filter((p) => p.status === filter);
-
-  // TODO(admin): server actions on the landing-page service; revalidate landingPageTag(slug) on publish.
-  const update = (id: string, patch: Partial<MockLandingPage>) =>
-    setPages((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
   return (
     <div className="space-y-6">
@@ -91,10 +86,10 @@ export function LandingPagesManager({
         <StatCard
           label="Conversion rate"
           value={`${views ? ((conversions / views) * 100).toFixed(1) : "0"}%`}
-          hint={`${conversions.toLocaleString("en-IN")} orders`}
+          hint={`${conversions.toLocaleString("en-IN")} conversions`}
           icon={<BarChart3 className="size-4" />}
         />
-        <StatCard label="Revenue" value={formatBDT(revenue)} hint="From landing page orders" icon={<ShoppingCart className="size-4" />} />
+        <StatCard label="Revenue" value={formatBDT(revenue)} hint="Orders placed via landing pages" icon={<ShoppingCart className="size-4" />} />
       </div>
 
       <div className="rounded-xl border bg-card">
@@ -114,14 +109,7 @@ export function LandingPagesManager({
               </button>
             ))}
           </div>
-          <CreateLandingDialog
-            products={products}
-            onCreate={(page) => {
-              setPages((ps) => [page, ...ps]);
-              toast.success(`“${page.title}” created as draft (demo)`);
-            }}
-            existingSlugs={pages.map((p) => p.slug)}
-          />
+          <CreateLandingDialog products={products} />
         </div>
 
         <Table>
@@ -146,19 +134,18 @@ export function LandingPagesManager({
             )}
             {visible.map((p) => {
               const rate = p.viewCount ? (p.conversionCount / p.viewCount) * 100 : 0;
-              const Icon = templates[p.template].icon;
               return (
                 <TableRow key={p.id}>
                   <TableCell className="pl-4">
                     <div className="flex items-start gap-3">
                       <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                        <Icon className="size-4" />
+                        <FileText className="size-4" />
                       </span>
                       <div className="min-w-0">
                         <p className="font-medium">{p.title}</p>
                         <p className="font-mono text-[11px] text-muted-foreground">/lp/{p.slug}</p>
                         <p className="text-[11px] text-muted-foreground">
-                          {templates[p.template].label} · updated {formatDate(p.updatedAt)}
+                          {p.sectionCount} sections · updated {formatDate(p.updatedAt)}
                         </p>
                       </div>
                     </div>
@@ -196,77 +183,7 @@ export function LandingPagesManager({
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{formatBDT(p.revenue)}</TableCell>
                   <TableCell className="pr-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${p.title}`}>
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => toast.info("The block editor is the next milestone.")}>
-                          <Pencil /> Edit sections
-                        </DropdownMenuItem>
-                        {p.status === "PUBLISHED" && (
-                          <DropdownMenuItem asChild>
-                            <Link href={`/lp/${p.slug}`} target="_blank">
-                              <ExternalLink /> View live
-                            </Link>
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            void navigator.clipboard?.writeText(`${window.location.origin}/lp/${p.slug}`);
-                            toast.success("Link copied");
-                          }}
-                        >
-                          <Link2 /> Copy link
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => {
-                            let slug = `${p.slug}-copy`;
-                            for (let n = 2; pages.some((x) => x.slug === slug); n++) slug = `${p.slug}-copy-${n}`;
-                            setPages((ps) => [
-                              { ...p, id: `lp_${slug}`, slug, title: `${p.title} (copy)`, status: "DRAFT", viewCount: 0, conversionCount: 0, revenue: 0 },
-                              ...ps,
-                            ]);
-                            toast.success("Duplicated as draft (demo)");
-                          }}
-                        >
-                          <Copy /> Duplicate
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {p.status !== "PUBLISHED" ? (
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              update(p.id, { status: "PUBLISHED" });
-                              toast.success("Published (demo)");
-                            }}
-                          >
-                            <Rocket /> Publish
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              update(p.id, { status: "DRAFT" });
-                              toast.success("Unpublished (demo)");
-                            }}
-                          >
-                            <Eye /> Unpublish
-                          </DropdownMenuItem>
-                        )}
-                        {p.status !== "ARCHIVED" && (
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => {
-                              update(p.id, { status: "ARCHIVED" });
-                              toast.success("Archived (demo)");
-                            }}
-                          >
-                            <Archive /> Archive
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <RowActions page={p} />
                   </TableCell>
                 </TableRow>
               );
@@ -278,22 +195,81 @@ export function LandingPagesManager({
   );
 }
 
-function CreateLandingDialog({
-  products,
-  existingSlugs,
-  onCreate,
-}: {
-  products: Pick<MockProduct, "id" | "name" | "price" | "compareAtPrice">[];
-  existingSlugs: string[];
-  onCreate: (page: MockLandingPage) => void;
-}) {
+function RowActions({ page }: { page: AdminLandingPage }) {
+  const [pending, startTransition] = useTransition();
+
+  const run = (action: () => Promise<{ ok: true } | { ok: false; message: string }>, success: string) =>
+    startTransition(async () => {
+      try {
+        const result = await action();
+        if (result.ok) toast.success(success);
+        else toast.error(result.message);
+      } catch {
+        toast.error("Something went wrong. Please try again.");
+      }
+    });
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" disabled={pending} aria-label={`Actions for ${page.title}`}>
+          {pending ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => toast.info("The section editor is the next milestone.")}>
+          <Pencil /> Edit sections
+        </DropdownMenuItem>
+        {page.status === "PUBLISHED" && (
+          <DropdownMenuItem asChild>
+            <Link href={`/lp/${page.slug}`} target="_blank">
+              <ExternalLink /> View live
+            </Link>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem
+          onSelect={() => {
+            void navigator.clipboard?.writeText(`${window.location.origin}/lp/${page.slug}`);
+            toast.success("Link copied");
+          }}
+        >
+          <Link2 /> Copy link
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => run(() => duplicateLandingPage(page.id), "Duplicated as a draft")}>
+          <Copy /> Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {page.status !== "PUBLISHED" ? (
+          <DropdownMenuItem onSelect={() => run(() => setLandingPageStatus({ id: page.id, status: "PUBLISHED" }), "Published")}>
+            <Rocket /> Publish
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onSelect={() => run(() => setLandingPageStatus({ id: page.id, status: "DRAFT" }), "Unpublished")}>
+            <Eye /> Unpublish
+          </DropdownMenuItem>
+        )}
+        {page.status !== "ARCHIVED" && (
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => run(() => setLandingPageStatus({ id: page.id, status: "ARCHIVED" }), "Archived")}
+          >
+            <Archive /> Archive
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function CreateLandingDialog({ products }: { products: ProductOption[] }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [productId, setProductId] = useState("");
-  const [template, setTemplate] = useState<Template>("bengali-longform");
+  const [template, setTemplate] = useState<LandingTemplate>("bengali-longform");
   const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   function reset() {
     setTitle("");
@@ -305,28 +281,13 @@ function CreateLandingDialog({
   }
 
   function submit() {
-    const product = products.find((p) => p.id === productId);
-    if (title.trim().length < 3) return setError("Give the page a name (3+ characters).");
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) return setError("Slug: lowercase letters, numbers and hyphens only.");
-    if (existingSlugs.includes(slug)) return setError("That slug is already in use.");
-    if (!product) return setError("Choose the product this page sells.");
-    onCreate({
-      id: `lp_${slug}`,
-      title: title.trim(),
-      slug,
-      status: "DRAFT",
-      productId: product.id,
-      productName: product.name,
-      template,
-      offers: [{ label: "1 pc", quantity: 1, price: product.price, compareAtPrice: product.compareAtPrice }],
-      viewCount: 0,
-      conversionCount: 0,
-      revenue: 0,
-      facebookPixel: false,
-      updatedAt: new Date().toISOString(),
+    startTransition(async () => {
+      const result = await createLandingPage({ title, slug, productId, template });
+      if (!result.ok) return setError(result.message);
+      toast.success(`“${title}” created as a draft`);
+      setOpen(false);
+      reset();
     });
-    setOpen(false);
-    reset();
   }
 
   return (
@@ -400,24 +361,28 @@ function CreateLandingDialog({
           <div className="space-y-1.5">
             <Label>Template</Label>
             <div className="grid gap-2">
-              {(Object.entries(templates) as [Template, (typeof templates)[Template]][]).map(([key, t]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={template === key}
-                  onClick={() => setTemplate(key)}
-                  className={cn(
-                    "flex items-start gap-3 rounded-lg border p-3 text-left transition",
-                    template === key ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-foreground/30",
-                  )}
-                >
-                  <t.icon className={cn("mt-0.5 size-4", template === key ? "text-primary" : "text-muted-foreground")} />
-                  <span>
-                    <span className="block text-sm font-medium">{t.label}</span>
-                    <span className="block text-xs text-muted-foreground">{t.body}</span>
-                  </span>
-                </button>
-              ))}
+              {(Object.keys(landingTemplates) as LandingTemplate[]).map((key) => {
+                const t = landingTemplates[key];
+                const Icon = templateIcons[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={template === key}
+                    onClick={() => setTemplate(key)}
+                    className={cn(
+                      "flex items-start gap-3 rounded-lg border p-3 text-left transition",
+                      template === key ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-foreground/30",
+                    )}
+                  >
+                    <Icon className={cn("mt-0.5 size-4", template === key ? "text-primary" : "text-muted-foreground")} />
+                    <span>
+                      <span className="block text-sm font-medium">{t.label}</span>
+                      <span className="block text-xs text-muted-foreground">{t.body}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -426,7 +391,8 @@ function CreateLandingDialog({
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button type="submit" form="create-lp">
+          <Button type="submit" form="create-lp" disabled={pending}>
+            {pending && <Loader2 className="animate-spin" />}
             Create draft
           </Button>
         </DialogFooter>

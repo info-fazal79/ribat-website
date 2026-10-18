@@ -1,7 +1,6 @@
 /**
- * Mock catalog used until the storefront is wired to Prisma.
- * Shapes mirror the serializable output of a future `src/server/services/catalog.ts`
- * (Decimal → number, dates → ISO strings), so components won't change when swapped.
+ * Seed input for the catalog (`npm run db:seed`). Not imported by the app —
+ * the storefront and admin read from the database via src/server/services.
  */
 
 export type CategorySlug = "panjabi" | "abaya" | "thobe" | "casual" | "fragrance";
@@ -11,8 +10,6 @@ export type MockCategory = {
   name: string;
   nameBn: string;
   blurb: string;
-  /** Placeholder art tones until real photography lands. */
-  tone: { from: string; to: string; ink: string };
 };
 
 export type ProductColor = { name: string; hex: string };
@@ -49,35 +46,30 @@ export const categories: MockCategory[] = [
     name: "Panjabi",
     nameBn: "পাঞ্জাবি",
     blurb: "Hand-finished cotton & silk panjabis",
-    tone: { from: "#1f3b33", to: "#0f241e", ink: "#d8c08a" },
   },
   {
     slug: "abaya",
     name: "Abaya",
     nameBn: "আবায়া",
     blurb: "Flowing Nida & crepe silhouettes",
-    tone: { from: "#2a2522", to: "#151210", ink: "#cbb38a" },
   },
   {
     slug: "thobe",
     name: "Thobe",
     nameBn: "জুব্বা",
     blurb: "Emirati & Moroccan cuts",
-    tone: { from: "#e9e1d3", to: "#d6cab4", ink: "#5b4a2f" },
   },
   {
     slug: "casual",
     name: "Casual",
     nameBn: "ক্যাজুয়াল",
     blurb: "Kurtas, polos & everyday modest wear",
-    tone: { from: "#c9b79c", to: "#a8926f", ink: "#2b2418" },
   },
   {
     slug: "fragrance",
     name: "Fragrance",
     nameBn: "আতর",
     blurb: "Alcohol-free attar & oud",
-    tone: { from: "#4a2f24", to: "#2a1a14", ink: "#e2c48e" },
   },
 ];
 
@@ -397,23 +389,6 @@ export const products: MockProduct[] = [
   },
 ];
 
-/** Only ACTIVE products are visible on the storefront. */
-export const activeProducts = products.filter((p) => p.status === "ACTIVE");
-
-export function getCategory(slug: string) {
-  return categories.find((c) => c.slug === slug);
-}
-
-export function getProduct(slug: string) {
-  return activeProducts.find((p) => p.slug === slug);
-}
-
-export function getProductsByCategory(slug: CategorySlug) {
-  return activeProducts.filter((p) => p.category === slug);
-}
-
-export const trendingProducts = activeProducts.filter((p) => p.isFeatured);
-
 export type MockVariant = {
   id: string;
   optionKey: string;
@@ -428,7 +403,7 @@ export type MockVariant = {
 };
 
 /** Deterministic colour × size variants, splitting the product's stock across them. */
-export function mockVariants(product: MockProduct): MockVariant[] {
+export function buildVariants(product: MockProduct): MockVariant[] {
   const colors = product.colors.length > 1 || product.sizes.length > 0 ? product.colors : [];
   const combos =
     product.type === "SIMPLE"

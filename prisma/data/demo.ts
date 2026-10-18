@@ -1,7 +1,6 @@
 /**
- * Mock admin data (orders, landing pages) mirroring the Prisma models,
- * serialized (Decimal → number, Date → ISO string). Replace with
- * src/server/services reads once the database is connected.
+ * Demo orders & landing pages for `npm run db:seed:demo` (opt-in, removable with
+ * `npm run db:seed:demo -- --remove`). Not imported by the app.
  */
 import type {
   LandingPageStatus,
@@ -9,7 +8,7 @@ import type {
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
-} from "@/generated/prisma/enums";
+} from "../../src/generated/prisma/enums";
 
 export type MockOrderItem = {
   productId: string;
@@ -67,7 +66,7 @@ const item = (productId: string, name: string, variant: string, sku: string, uni
 
 export const orders: MockOrder[] = [
   order({
-    orderNumber: "RBT-100248",
+    orderNumber: "DEMO-100248",
     customerName: "Tanvir Ahmed",
     customerPhone: "01712345678",
     district: "Dhaka",
@@ -86,7 +85,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-18T09:42:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100247",
+    orderNumber: "DEMO-100247",
     customerName: "নুসরাত জাহান",
     customerPhone: "01819876543",
     district: "Chattogram",
@@ -104,7 +103,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-18T08:15:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100246",
+    orderNumber: "DEMO-100246",
     customerName: "Imran Hossain",
     customerPhone: "01556123987",
     district: "Sylhet",
@@ -121,7 +120,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-17T19:03:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100245",
+    orderNumber: "DEMO-100245",
     customerName: "Farhana Rahman",
     customerPhone: "01911223344",
     district: "Rajshahi",
@@ -140,7 +139,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-17T14:27:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100244",
+    orderNumber: "DEMO-100244",
     customerName: "Mahmudul Hasan",
     customerPhone: "01677889900",
     district: "Khulna",
@@ -158,7 +157,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-16T11:50:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100243",
+    orderNumber: "DEMO-100243",
     customerName: "Sadia Islam",
     customerPhone: "01722334455",
     district: "Dhaka",
@@ -177,7 +176,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-16T09:12:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100242",
+    orderNumber: "DEMO-100242",
     customerName: "Rakib Chowdhury",
     customerPhone: "01811002200",
     district: "Cumilla",
@@ -198,7 +197,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-14T16:40:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100241",
+    orderNumber: "DEMO-100241",
     customerName: "Ayesha Siddiqua",
     customerPhone: "01988776655",
     district: "Dhaka",
@@ -216,7 +215,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-13T12:05:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100240",
+    orderNumber: "DEMO-100240",
     customerName: "শফিকুল ইসলাম",
     customerPhone: "01533445566",
     district: "Bogura",
@@ -235,7 +234,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-12T08:31:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100239",
+    orderNumber: "DEMO-100239",
     customerName: "Nabila Karim",
     customerPhone: "01799887766",
     district: "Gazipur",
@@ -252,7 +251,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-11T18:22:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100238",
+    orderNumber: "DEMO-100238",
     customerName: "Arif Mahmud",
     customerPhone: "01611223399",
     district: "Narayanganj",
@@ -270,7 +269,7 @@ export const orders: MockOrder[] = [
     createdAt: "2026-10-09T10:10:00.000Z",
   }),
   order({
-    orderNumber: "RBT-100237",
+    orderNumber: "DEMO-100237",
     customerName: "Tasnim Ferdous",
     customerPhone: "01844556677",
     district: "Dhaka",

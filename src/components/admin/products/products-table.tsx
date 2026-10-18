@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { Copy, ExternalLink, MoreHorizontal, Pencil, Search, Star, Archive } from "lucide-react";
+import { useMemo, useState, useTransition } from "react";
+import { Archive, ArchiveRestore, ExternalLink, MoreHorizontal, Pencil, Search, Star } from "lucide-react";
 import { toast } from "sonner";
+import { updateProductStatus } from "@/app/(admin)/admin/products/actions";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -18,13 +19,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ProductArt } from "@/components/storefront/art";
 import { ProductStatusBadge, StatusPill } from "@/components/admin/status-badge";
 import type { ProductStatus } from "@/generated/prisma/enums";
-import { categories, mockVariants, type MockProduct } from "@/lib/mock/catalog";
+import type { AdminProductRow } from "@/lib/admin/types";
 import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 const LOW_STOCK = 10;
 
-export function ProductsTable({ products }: { products: MockProduct[] }) {
+export function ProductsTable({
+  products,
+  categories,
+}: {
+  products: AdminProductRow[];
+  categories: { slug: string; name: string }[];
+}) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ProductStatus | "ALL">("ALL");
   const [category, setCategory] = useState("all");
@@ -36,15 +43,14 @@ export function ProductsTable({ products }: { products: MockProduct[] }) {
     return c;
   }, [products]);
 
-  const filtered = products.filter((p) => {
-    const q = query.trim().toLowerCase();
-    return (
+  const q = query.trim().toLowerCase();
+  const filtered = products.filter(
+    (p) =>
       (status === "ALL" || p.status === status) &&
-      (category === "all" || p.category === category) &&
+      (category === "all" || p.category?.slug === category) &&
       (type === "all" || p.type === type) &&
-      (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.nameBn.includes(q))
-    );
-  });
+      (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || !!p.nameBn?.includes(query.trim())),
+  );
 
   return (
     <div className="rounded-xl border bg-card">
@@ -118,56 +124,47 @@ export function ProductsTable({ products }: { products: MockProduct[] }) {
           {filtered.length === 0 && (
             <TableRow>
               <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                No products match these filters.
+                {products.length === 0 ? "No products yet — add your first one." : "No products match these filters."}
               </TableCell>
             </TableRow>
           )}
-          {filtered.map((p) => {
-            const variants = mockVariants(p);
-            return (
-              <TableRow key={p.id}>
-                <TableCell className="pl-4">
-                  <Link href={`/admin/products/${p.id}/edit`} className="group flex items-center gap-3">
-                    <ProductArt
-                      category={p.category}
-                      color={p.colors[0].hex}
-                      className="aspect-[3/4] w-10 shrink-0 rounded-sm"
-                    />
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-1.5 font-medium group-hover:underline">
-                        {p.name}
-                        {p.isFeatured && <Star className="size-3 fill-gold text-gold" aria-label="Featured" />}
-                      </p>
-                      <p className="font-mono text-[11px] text-muted-foreground">{p.sku}</p>
-                    </div>
-                  </Link>
-                </TableCell>
-                <TableCell className="capitalize">{p.category}</TableCell>
-                <TableCell>
-                  <StatusPill tone={p.type === "VARIABLE" ? "blue" : "neutral"} dot={false}>
-                    {p.type === "VARIABLE" ? `Variable · ${variants.length}` : "Simple"}
-                  </StatusPill>
-                </TableCell>
-                <TableCell className="text-right">
-                  <p className="font-medium tabular-nums">{formatBDT(p.price)}</p>
-                  {p.compareAtPrice && (
-                    <p className="text-[11px] text-muted-foreground line-through tabular-nums">
-                      {formatBDT(p.compareAtPrice)}
+          {filtered.map((p) => (
+            <TableRow key={p.id}>
+              <TableCell className="pl-4">
+                <Link href={`/admin/products/${p.id}/edit`} className="group flex items-center gap-3">
+                  <ProductArt kind={p.art} color={p.color} className="aspect-[3/4] w-10 shrink-0 rounded-sm" />
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 font-medium group-hover:underline">
+                      {p.name}
+                      {p.isFeatured && <Star className="size-3 fill-gold text-gold" aria-label="Featured" />}
                     </p>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <StockCell stock={p.stock} variants={variants.length} />
-                </TableCell>
-                <TableCell>
-                  <ProductStatusBadge status={p.status} />
-                </TableCell>
-                <TableCell className="pr-4">
-                  <RowActions product={p} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
+                    <p className="font-mono text-[11px] text-muted-foreground">{p.sku}</p>
+                  </div>
+                </Link>
+              </TableCell>
+              <TableCell>{p.category?.name ?? <span className="text-muted-foreground">—</span>}</TableCell>
+              <TableCell>
+                <StatusPill tone={p.type === "VARIABLE" ? "blue" : "neutral"} dot={false}>
+                  {p.type === "VARIABLE" ? `Variable · ${p.variantCount}` : "Simple"}
+                </StatusPill>
+              </TableCell>
+              <TableCell className="text-right">
+                <p className="font-medium tabular-nums">{formatBDT(p.price)}</p>
+                {p.compareAtPrice && (
+                  <p className="text-[11px] text-muted-foreground line-through tabular-nums">{formatBDT(p.compareAtPrice)}</p>
+                )}
+              </TableCell>
+              <TableCell>
+                <StockCell stock={p.stock} variants={p.variantCount} />
+              </TableCell>
+              <TableCell>
+                <ProductStatusBadge status={p.status} />
+              </TableCell>
+              <TableCell className="pr-4">
+                <RowActions product={p} />
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
       <p className="border-t px-4 py-3 text-xs text-muted-foreground">
@@ -178,11 +175,15 @@ export function ProductsTable({ products }: { products: MockProduct[] }) {
 }
 
 function StockCell({ stock, variants }: { stock: number; variants: number }) {
-  const tone = stock === 0 ? "text-destructive" : stock <= LOW_STOCK ? "text-amber-700" : "text-foreground";
   const pct = Math.min(100, (stock / 150) * 100);
   return (
     <div className="w-28 space-y-1">
-      <p className={cn("text-sm tabular-nums", tone)}>
+      <p
+        className={cn(
+          "text-sm tabular-nums",
+          stock === 0 ? "text-destructive" : stock <= LOW_STOCK ? "text-amber-700" : "text-foreground",
+        )}
+      >
         {stock === 0 ? "Out of stock" : `${stock} in stock`}
         {variants > 1 && <span className="text-muted-foreground"> · {variants}v</span>}
       </p>
@@ -196,11 +197,23 @@ function StockCell({ stock, variants }: { stock: number; variants: number }) {
   );
 }
 
-function RowActions({ product }: { product: MockProduct }) {
+function RowActions({ product }: { product: AdminProductRow }) {
+  const [pending, startTransition] = useTransition();
+
+  const setStatus = (status: ProductStatus, message: string) =>
+    startTransition(async () => {
+      try {
+        await updateProductStatus({ id: product.id, status });
+        toast.success(message);
+      } catch {
+        toast.error("Could not update the product");
+      }
+    });
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${product.name}`}>
+        <Button variant="ghost" size="icon-sm" disabled={pending} aria-label={`Actions for ${product.name}`}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -217,13 +230,19 @@ function RowActions({ product }: { product: MockProduct }) {
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onSelect={() => toast.info(`Duplicated “${product.name}” (demo)`)}>
-          <Copy /> Duplicate
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={() => toast.info(`Archived “${product.name}” (demo)`)}>
-          <Archive /> Archive
-        </DropdownMenuItem>
+        {product.status === "ARCHIVED" ? (
+          <DropdownMenuItem onSelect={() => setStatus("DRAFT", `“${product.name}” restored as draft`)}>
+            <ArchiveRestore /> Restore as draft
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => setStatus("ARCHIVED", `“${product.name}” archived — hidden from the store`)}
+          >
+            <Archive /> Archive
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

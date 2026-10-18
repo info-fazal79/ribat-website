@@ -1,6 +1,6 @@
-/** Mock homepage content (will move to the Banner model / Settings). */
+/** Static homepage content (hero, testimonials, Instagram) until it moves to the Banner model / Settings. */
 
-import type { CategorySlug } from "./catalog";
+import type { ArtKind } from "../catalog/types";
 
 export type HeroSlide = {
   id: string;
@@ -10,7 +10,7 @@ export type HeroSlide = {
   body: string;
   primary: { label: string; href: string };
   secondary: { label: string; href: string };
-  art: CategorySlug;
+  art: ArtKind;
   tone: { from: string; to: string; ink: string; text: "light" | "dark" };
 };
 

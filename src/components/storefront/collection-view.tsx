@@ -3,19 +3,19 @@
 import { useMemo, useState } from "react";
 import { ProductCard } from "@/components/storefront/product-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { MockProduct } from "@/lib/mock/catalog";
+import type { CatalogProduct } from "@/lib/catalog/types";
 
 const sorts = {
-  featured: { label: "Featured", fn: (a: MockProduct, b: MockProduct) => Number(b.isFeatured) - Number(a.isFeatured) },
-  newest: { label: "Newest", fn: (a: MockProduct, b: MockProduct) => b.createdAt.localeCompare(a.createdAt) },
-  "price-asc": { label: "Price: Low to High", fn: (a: MockProduct, b: MockProduct) => a.price - b.price },
-  "price-desc": { label: "Price: High to Low", fn: (a: MockProduct, b: MockProduct) => b.price - a.price },
-  rating: { label: "Top Rated", fn: (a: MockProduct, b: MockProduct) => b.rating - a.rating },
+  featured: { label: "Featured", fn: (a: CatalogProduct, b: CatalogProduct) => Number(b.isFeatured) - Number(a.isFeatured) },
+  newest: { label: "Newest", fn: (a: CatalogProduct, b: CatalogProduct) => b.createdAt.localeCompare(a.createdAt) },
+  "price-asc": { label: "Price: Low to High", fn: (a: CatalogProduct, b: CatalogProduct) => a.price - b.price },
+  "price-desc": { label: "Price: High to Low", fn: (a: CatalogProduct, b: CatalogProduct) => b.price - a.price },
+  rating: { label: "Top Rated", fn: (a: CatalogProduct, b: CatalogProduct) => b.rating - a.rating },
 } as const;
 
 type SortKey = keyof typeof sorts;
 
-export function CollectionView({ products }: { products: MockProduct[] }) {
+export function CollectionView({ products }: { products: CatalogProduct[] }) {
   const [sort, setSort] = useState<SortKey>("featured");
   const sorted = useMemo(() => [...products].sort(sorts[sort].fn), [products, sort]);
 

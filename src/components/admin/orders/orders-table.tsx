@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Download, MapPin, Phone, Printer, Search, StickyNote, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,8 @@ import {
   paymentMethodLabel,
 } from "@/components/admin/status-badge";
 import { OrderStatus } from "@/generated/prisma/enums";
-import type { MockOrder } from "@/lib/mock/admin";
+import { updateOrderStatus } from "@/app/(admin)/admin/orders/actions";
+import type { AdminOrder } from "@/lib/admin/types";
 import { formatDateTime } from "@/lib/format";
 import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -24,8 +25,7 @@ import { cn } from "@/lib/utils";
 const statuses = Object.values(OrderStatus);
 const label = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
-export function OrdersTable({ orders: initial }: { orders: MockOrder[] }) {
-  const [orders, setOrders] = useState(initial);
+export function OrdersTable({ orders }: { orders: AdminOrder[] }) {
   const [status, setStatus] = useState<OrderStatus | "ALL">("ALL");
   const [query, setQuery] = useState("");
   const [payment, setPayment] = useState("all");
@@ -52,11 +52,6 @@ export function OrdersTable({ orders: initial }: { orders: MockOrder[] }) {
   );
 
   const open = orders.find((o) => o.id === openId) ?? null;
-
-  function update(id: string, patch: Partial<MockOrder>) {
-    // TODO(admin): server action → order service (status history, stock restock on cancel/return).
-    setOrders((os) => os.map((o) => (o.id === id ? { ...o, ...patch } : o)));
-  }
 
   return (
     <>
@@ -112,7 +107,7 @@ export function OrdersTable({ orders: initial }: { orders: MockOrder[] }) {
               <SelectItem value="ADMIN">Manual</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => toast.info("CSV export will be available once orders come from the database.")}>
+          <Button variant="outline" onClick={() => toast.info("CSV export is coming soon.")}>
             <Download /> Export
           </Button>
         </div>
@@ -183,21 +178,31 @@ export function OrdersTable({ orders: initial }: { orders: MockOrder[] }) {
 
       <Sheet open={!!open} onOpenChange={(v) => !v && setOpenId(null)}>
         <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-lg">
-          {open && <OrderDetail order={open} onUpdate={(patch) => update(open.id, patch)} />}
+          {open && <OrderDetail key={open.id} order={open} />}
         </SheetContent>
       </Sheet>
     </>
   );
 }
 
-function OrderDetail({ order, onUpdate }: { order: MockOrder; onUpdate: (patch: Partial<MockOrder>) => void }) {
+function OrderDetail({ order }: { order: AdminOrder }) {
   const canShip = order.status === "PENDING" || order.status === "PROCESSING";
+  const [pending, startTransition] = useTransition();
+
+  function changeStatus(status: OrderStatus) {
+    startTransition(async () => {
+      try {
+        await updateOrderStatus({ id: order.id, status });
+        toast.success(`${order.orderNumber} marked ${label(status)}`);
+      } catch {
+        toast.error("Could not update the order status");
+      }
+    });
+  }
 
   function book(courier: "Steadfast" | "Pathao") {
-    // TODO(admin): call src/server/integrations/courier via a server action.
-    const trackingCode = courier === "Steadfast" ? `SF-${order.orderNumber.slice(-6)}01` : `PTH-${order.orderNumber.slice(-4)}X`;
-    onUpdate({ status: "SHIPPED", courierName: courier, trackingCode });
-    toast.success(`Booked with ${courier}`, { description: `Tracking ${trackingCode} (demo)` });
+    // TODO(admin): server action → src/server/integrations/courier, then store courierName/trackingCode.
+    toast.info(`${courier} isn't connected yet`, { description: "Add the API keys in .env and implement the courier client." });
   }
 
   return (
@@ -217,13 +222,7 @@ function OrderDetail({ order, onUpdate }: { order: MockOrder; onUpdate: (patch: 
         <section className="space-y-2">
           <h3 className="font-sans text-xs font-semibold tracking-wide text-muted-foreground uppercase">Update status</h3>
           <div className="flex gap-2">
-            <Select
-              value={order.status}
-              onValueChange={(v) => {
-                onUpdate({ status: v as OrderStatus });
-                toast.success(`Status changed to ${label(v)} (demo)`);
-              }}
-            >
+            <Select value={order.status} disabled={pending} onValueChange={(v) => changeStatus(v as OrderStatus)}>
               <SelectTrigger className="flex-1" aria-label="Order status">
                 <SelectValue />
               </SelectTrigger>
@@ -262,7 +261,7 @@ function OrderDetail({ order, onUpdate }: { order: MockOrder; onUpdate: (patch: 
           <h3 className="font-sans text-xs font-semibold tracking-wide text-muted-foreground uppercase">Items</h3>
           <ul className="divide-y rounded-lg border">
             {order.items.map((i) => (
-              <li key={i.sku} className="flex justify-between gap-4 p-3 text-sm">
+              <li key={i.id} className="flex justify-between gap-4 p-3 text-sm">
                 <div className="min-w-0">
                   <p className="font-medium">{i.name}</p>
                   <p className="text-xs text-muted-foreground">

@@ -33,7 +33,7 @@ export function EditorialBanner() {
         <div className="relative min-h-80 md:min-h-[520px]">
           <div className="absolute inset-x-[18%] top-[10%] bottom-0 rounded-t-full border border-[#d8c08a]/40 bg-[linear-gradient(180deg,rgba(216,192,138,0.18),transparent_80%)]" />
           <Silhouette
-            category="panjabi"
+            kind="panjabi"
             fill="#d9c39a"
             stroke="rgba(60,47,25,0.5)"
             className="absolute inset-x-0 bottom-[4%] mx-auto h-[80%] w-auto drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)]"

@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { CategorySlug } from "@/lib/mock/catalog";
+import type { ArtKind } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  */
 
 // viewBox 0 0 100 130
-const silhouettes: Record<CategorySlug, { body: string; details: string }> = {
+const silhouettes: Record<ArtKind, { body: string; details: string }> = {
   panjabi: {
     body: "M38 14 L50 18 L62 14 L80 22 L93 58 L83 62 L74 42 L75 108 L25 108 L26 42 L17 62 L7 58 L20 22 Z",
     details: "M50 18 L50 46 M47 24 h6 M47 31 h6 M47 38 h6",
@@ -62,18 +62,18 @@ export function GeometricPattern({ color, opacity = 0.12, className }: { color: 
 }
 
 export function Silhouette({
-  category,
+  kind,
   fill,
   stroke,
   className,
 }: {
-  category: CategorySlug;
+  kind: ArtKind;
   fill: string;
   stroke: string;
   className?: string;
 }) {
   const id = useId();
-  const shape = silhouettes[category];
+  const shape = silhouettes[kind];
   return (
     <svg viewBox="0 0 100 130" aria-hidden className={className}>
       <defs>
@@ -90,11 +90,11 @@ export function Silhouette({
 
 /** Studio "product shot": soft backdrop, arch frame, tinted garment, floor shadow. */
 export function ProductArt({
-  category,
+  kind,
   color,
   className,
 }: {
-  category: CategorySlug;
+  kind: ArtKind;
   color: string;
   className?: string;
 }) {
@@ -110,7 +110,7 @@ export function ProductArt({
       {/* Floor shadow */}
       <div className="absolute bottom-[7%] left-1/2 h-[4%] w-[48%] -translate-x-1/2 rounded-[50%] bg-black/15 blur-md" />
       <Silhouette
-        category={category}
+        kind={kind}
         fill={color}
         stroke={stroke}
         className="absolute inset-x-0 bottom-[8%] mx-auto h-[78%] w-auto drop-shadow-[0_10px_18px_rgba(40,30,15,0.18)] transition-transform duration-700 ease-out group-hover/art:scale-[1.04]"
@@ -121,11 +121,11 @@ export function ProductArt({
 
 /** Editorial tile: deep tone, geometric pattern, oversized ink silhouette. */
 export function EditorialArt({
-  category,
+  kind,
   tone,
   className,
 }: {
-  category: CategorySlug;
+  kind: ArtKind;
   tone: { from: string; to: string; ink: string };
   className?: string;
 }) {
@@ -136,7 +136,7 @@ export function EditorialArt({
     >
       <GeometricPattern color={tone.ink} opacity={0.22} />
       <Silhouette
-        category={category}
+        kind={kind}
         fill={`color-mix(in oklch, ${tone.ink} 22%, transparent)`}
         stroke={tone.ink}
         className="absolute right-[-6%] bottom-[-4%] h-[92%] w-auto opacity-80 transition-transform duration-700 ease-out group-hover:scale-105"

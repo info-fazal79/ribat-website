@@ -197,6 +197,7 @@ model Category {
   id          String     @id @default(cuid())
   name        String
   slug        String     @unique
+  nameBn      String?    // Bengali display name
   description String?
   imageUrl    String?
   parentId    String?
@@ -256,11 +257,16 @@ model Product {
   fabricCare       String?       @db.Text
   tags             String[]
   isFeatured       Boolean       @default(false)
+  nameBn           String?       // Bengali display name
+  badge            String?       // "New" | "Bestseller" | "Limited" | "Eid Edit"
 
   // Denormalized from variants (kept in sync by service layer) for fast listing/sort
   minPrice   Decimal @default(0) @db.Decimal(12, 2)
   maxPrice   Decimal @default(0) @db.Decimal(12, 2)
   totalStock Int     @default(0)
+  // Denormalized from approved reviews (kept in sync by the review service)
+  ratingAvg   Decimal @default(0) @db.Decimal(2, 1)
+  reviewCount Int     @default(0)
 
   categoryId  String?
   sizeChartId String?

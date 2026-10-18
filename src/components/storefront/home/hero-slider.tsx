@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { GeometricPattern, Silhouette } from "@/components/storefront/art";
-import type { HeroSlide } from "@/lib/mock/content";
+import type { HeroSlide } from "@/lib/content/home";
 import { cn } from "@/lib/utils";
 
 const INTERVAL_MS = 6500;
@@ -63,7 +63,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               }}
             >
               <Silhouette
-                category={slide.art}
+                kind={slide.art}
                 fill={`color-mix(in oklch, ${slide.tone.ink} ${light ? 30 : 55}%, ${slide.tone.from})`}
                 stroke={slide.tone.ink}
                 className={cn(

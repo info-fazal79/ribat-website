@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck, ChevronLeft, ChevronRight, Quote } from "lucide-react";
 import { SectionHeading } from "@/components/storefront/home/section-heading";
 import { StarRating } from "@/components/storefront/star-rating";
-import type { Testimonial } from "@/lib/mock/content";
+import type { Testimonial } from "@/lib/content/home";
 import { cn } from "@/lib/utils";
 
 export function Testimonials({ items }: { items: Testimonial[] }) {

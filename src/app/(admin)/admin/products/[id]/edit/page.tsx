@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductForm } from "@/components/admin/products/product-form";
-import { products } from "@/lib/mock/catalog";
 import { requireStaff } from "@/server/auth/guards";
+import { getProductForEdit, listCategoryOptions } from "@/server/services/admin";
 
 export const metadata: Metadata = { title: "Edit Product" };
 
@@ -19,8 +19,7 @@ export default function EditProductPage({ params }: PageProps<"/admin/products/[
 async function EditProduct({ params }: Pick<PageProps<"/admin/products/[id]/edit">, "params">) {
   await requireStaff();
   const { id } = await params;
-  // TODO(admin): load from the products service (include variants/options/images).
-  const product = products.find((p) => p.id === id);
+  const [product, categories] = await Promise.all([getProductForEdit(id), listCategoryOptions()]);
   if (!product) notFound();
-  return <ProductForm key={product.id} product={product} />;
+  return <ProductForm key={product.id} product={product} categories={categories} />;
 }

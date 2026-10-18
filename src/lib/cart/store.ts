@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { CategorySlug } from "@/lib/mock/catalog";
+import type { ArtKind } from "@/lib/catalog/types";
 
 /**
  * Client-side cart persisted to localStorage. Prices here are for display only —
@@ -9,10 +9,11 @@ import type { CategorySlug } from "@/lib/mock/catalog";
  */
 export type CartLine = {
   key: string;
+  variantId: string;
   productId: string;
   slug: string;
   name: string;
-  category: CategorySlug;
+  art: ArtKind;
   color: { name: string; hex: string };
   size: string | null;
   price: number;
@@ -22,7 +23,7 @@ export type CartLine = {
 
 type CartState = { lines: CartLine[]; open: boolean };
 
-const STORAGE_KEY = "ribat:cart:v1";
+const STORAGE_KEY = "ribat:cart:v2"; // v2: lines carry variantId
 const MAX_QTY = 20;
 const EMPTY: CartState = { lines: [], open: false };
 
@@ -60,7 +61,7 @@ function subscribe(listener: () => void) {
 export const cart = {
   add(line: Omit<CartLine, "key" | "quantity">, quantity = 1, { open = true } = {}) {
     hydrate();
-    const key = `${line.productId}:${line.color.name}:${line.size ?? "-"}`;
+    const key = line.variantId;
     const existing = state.lines.find((l) => l.key === key);
     const lines = existing
       ? state.lines.map((l) => (l.key === key ? { ...l, quantity: Math.min(MAX_QTY, l.quantity + quantity) } : l))

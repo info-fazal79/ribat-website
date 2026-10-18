@@ -22,16 +22,6 @@ export function AdminPageHeader({
   );
 }
 
-/** Flags screens still running on src/lib/mock data. */
-export function DemoDataNotice() {
-  return (
-    <p className="rounded-md border border-dashed border-gold/60 bg-gold/10 px-3 py-2 text-xs text-gold-foreground">
-      <strong>Demo data.</strong> This screen shows mock records from <code>src/lib/mock</code>; changes are not saved
-      until it is connected to the database.
-    </p>
-  );
-}
-
 export function StatCard({
   label,
   value,

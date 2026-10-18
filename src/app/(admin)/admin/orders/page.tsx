@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Banknote, Clock, PackageCheck, ShoppingBag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminPageHeader, DemoDataNotice, StatCard } from "@/components/admin/page-header";
+import { AdminPageHeader, StatCard } from "@/components/admin/page-header";
 import { OrdersTable } from "@/components/admin/orders/orders-table";
-import { orders } from "@/lib/mock/admin";
 import { formatBDT } from "@/lib/money";
 import { requireStaff } from "@/server/auth/guards";
+import { listOrders } from "@/server/services/admin";
 
 export const metadata: Metadata = { title: "Orders" };
 
@@ -23,7 +23,7 @@ export default function AdminOrdersPage() {
 
 async function OrdersContent() {
   await requireStaff();
-  // TODO(admin): replace with an orders service query (paginated, server-side filters).
+  const orders = await listOrders();
   const pending = orders.filter((o) => o.status === "PENDING").length;
   const live = orders.filter((o) => o.status !== "CANCELLED" && o.status !== "RETURNED");
   const revenue = live.reduce((n, o) => n + o.total, 0);
@@ -34,9 +34,8 @@ async function OrdersContent() {
 
   return (
     <>
-      <DemoDataNotice />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Orders" value={String(orders.length)} hint="Last 10 days" icon={<ShoppingBag className="size-4" />} />
+        <StatCard label="Orders" value={String(orders.length)} hint="Most recent 200" icon={<ShoppingBag className="size-4" />} />
         <StatCard label="Needs confirmation" value={String(pending)} hint="Pending — call to confirm" icon={<Clock className="size-4 text-amber-600" />} />
         <StatCard label="Revenue" value={formatBDT(revenue)} hint="Excl. cancelled & returned" icon={<Banknote className="size-4" />} />
         <StatCard label="COD in transit" value={formatBDT(codDue)} hint={`${delivered} delivered`} icon={<PackageCheck className="size-4" />} />

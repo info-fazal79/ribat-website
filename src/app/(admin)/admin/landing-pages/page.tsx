@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AdminPageHeader, DemoDataNotice } from "@/components/admin/page-header";
+import { AdminPageHeader } from "@/components/admin/page-header";
 import { LandingPagesManager } from "@/components/admin/landing-pages/landing-pages-manager";
-import { landingPages } from "@/lib/mock/admin";
-import { activeProducts } from "@/lib/mock/catalog";
 import { requireStaff } from "@/server/auth/guards";
+import { listLandingPages, listLandingProductOptions } from "@/server/services/admin";
 
 export const metadata: Metadata = { title: "Landing Pages" };
 
@@ -25,12 +24,6 @@ export default function AdminLandingPagesPage() {
 
 async function LandingPagesContent() {
   await requireStaff();
-  // TODO(admin): replace with a landing-pages service query.
-  const products = activeProducts.map(({ id, name, price, compareAtPrice }) => ({ id, name, price, compareAtPrice }));
-  return (
-    <>
-      <DemoDataNotice />
-      <LandingPagesManager pages={landingPages} products={products} />
-    </>
-  );
+  const [pages, products] = await Promise.all([listLandingPages(), listLandingProductOptions()]);
+  return <LandingPagesManager pages={pages} products={products} />;
 }

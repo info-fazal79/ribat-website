@@ -11,7 +11,8 @@ Storefront · Admin dashboard · CartFlows-style one-page landing checkout.
 cp .env.example .env          # fill DATABASE_URL, DIRECT_URL, AUTH_SECRET (npx auth secret)
 npm install                   # also runs `prisma generate`
 npm run db:migrate            # create tables (first run: name it "init")
-npm run db:seed               # admin user, shipping zones, Color/Size, default settings
+npm run db:seed               # admin, shipping zones, Color/Size, categories, starter catalog, settings
+npm run db:seed:demo          # optional: demo orders + landing pages (`-- --remove` to delete)
 npm run dev                   # http://localhost:3000  ·  admin: /login → /admin
 ```
 
@@ -24,7 +25,8 @@ npm run dev                   # http://localhost:3000  ·  admin: /login → /ad
 | `db:migrate` | `prisma migrate dev` (local schema changes) |
 | `db:deploy` | `prisma migrate deploy` (production) |
 | `db:push` | Prototype schema without a migration |
-| `db:seed` | Idempotent seed (`prisma/seed.ts`) |
+| `db:seed` | Idempotent seed (`prisma/seed.ts`, catalog data in `prisma/data/`) |
+| `db:seed:demo` | Opt-in demo orders & landing pages (`-- --remove` deletes them) |
 | `db:studio` | Prisma Studio |
 
 ## Project structure

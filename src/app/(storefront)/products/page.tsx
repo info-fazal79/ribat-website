@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { CollectionView } from "@/components/storefront/collection-view";
 import { PageBanner } from "@/components/storefront/page-banner";
-import { activeProducts } from "@/lib/mock/catalog";
+import { getActiveProducts } from "@/server/services/catalog";
 
 export const metadata: Metadata = { title: "Shop All" };
 
-// TODO(storefront): filters (category, size, color, price) via src/server/services once on Prisma.
-export default function ProductsPage() {
+// TODO(storefront): filters (category, size, color, price) once the catalog grows.
+export default async function ProductsPage() {
+  const products = await getActiveProducts();
   return (
     <>
       <PageBanner
@@ -16,7 +17,7 @@ export default function ProductsPage() {
         crumbs={[{ title: "Shop All" }]}
       />
       <section className="container mx-auto px-4 py-12">
-        <CollectionView products={activeProducts} />
+        <CollectionView products={products} />
       </section>
     </>
   );

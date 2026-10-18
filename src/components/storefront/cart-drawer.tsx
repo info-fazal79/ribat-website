@@ -80,7 +80,7 @@ export function CartLineItem({ line }: { line: CartLine }) {
   return (
     <li className="flex gap-4 py-4">
       <Link href={`/products/${line.slug}`} className="w-20 shrink-0" onClick={() => cart.setOpen(false)}>
-        <ProductArt category={line.category} color={line.color.hex} className="aspect-[3/4] w-full" />
+        <ProductArt kind={line.art} color={line.color.hex} className="aspect-[3/4] w-full" />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-start justify-between gap-2">
@@ -95,8 +95,7 @@ export function CartLineItem({ line }: { line: CartLine }) {
           </button>
         </div>
         <p className="text-xs text-muted-foreground">
-          {line.color.name}
-          {line.size && ` · Size ${line.size}`}
+          {[line.color.name, line.size && `Size ${line.size}`].filter(Boolean).join(" · ")}
         </p>
         <div className="mt-auto flex items-center justify-between">
           <div className="flex items-center border">

@@ -16,7 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ProductArt } from "@/components/storefront/art";
 import { ProductStatusBadge } from "@/components/admin/status-badge";
-import { categories, mockVariants, type CategorySlug, type MockProduct } from "@/lib/mock/catalog";
+import { categoryArt } from "@/config/category-art";
+import type { ProductEditData } from "@/lib/admin/types";
 import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -74,7 +75,7 @@ const slugify = (s: string) =>
 
 const code = (s: string) => s.replace(/\s+/g, "").slice(0, 3).toUpperCase();
 
-function initialState(product?: MockProduct): FormState {
+function initialState(product?: ProductEditData): FormState {
   if (!product) {
     return {
       name: "",
@@ -100,10 +101,20 @@ function initialState(product?: MockProduct): FormState {
       variantEdits: {},
     };
   }
+  // Existing variant values, keyed the same way the variant grid keys its rows ("Ivory|L").
   const variantEdits: Record<string, VariantEdit> = {};
   if (product.type === "VARIABLE") {
-    for (const v of mockVariants(product)) variantEdits[v.optionKey] = { sku: v.sku, stock: String(v.stock) };
+    for (const v of product.variants) {
+      variantEdits[[v.color, v.size].filter(Boolean).join("|")] = {
+        sku: v.sku,
+        price: String(v.price),
+        compareAtPrice: v.compareAtPrice === null ? "" : String(v.compareAtPrice),
+        stock: String(v.stock),
+        isActive: v.isActive,
+      };
+    }
   }
+  const str = (n: number | null) => (n === null ? "" : String(n));
   return {
     id: product.id,
     name: product.name,
@@ -112,20 +123,20 @@ function initialState(product?: MockProduct): FormState {
     status: product.status,
     category: product.category,
     shortDescription: product.shortDescription,
-    description: product.descriptionBn,
-    fabricCare: `${product.fabric}\n${product.care}`,
-    tags: [product.category, ...(product.badge ? [product.badge.toLowerCase()] : [])],
+    description: product.description,
+    fabricCare: product.fabricCare,
+    tags: product.tags,
     isFeatured: product.isFeatured,
-    metaTitle: product.name,
-    metaDescription: product.shortDescription,
+    metaTitle: product.metaTitle,
+    metaDescription: product.metaDescription,
     sku: product.sku,
-    price: String(product.price),
-    compareAtPrice: product.compareAtPrice ? String(product.compareAtPrice) : "",
-    costPrice: String(Math.round(product.price * 0.45)),
-    stock: String(product.stock),
-    lowStockAt: "3",
-    colors: product.type === "VARIABLE" && (product.colors.length > 1 || product.sizes.length) ? product.colors : [],
-    sizes: product.sizes,
+    price: str(product.price),
+    compareAtPrice: str(product.compareAtPrice),
+    costPrice: str(product.costPrice),
+    stock: str(product.stock),
+    lowStockAt: str(product.lowStockAt),
+    colors: product.type === "VARIABLE" ? product.colors : [],
+    sizes: product.type === "VARIABLE" ? product.sizes : [],
     variantEdits,
   };
 }
@@ -133,7 +144,9 @@ function initialState(product?: MockProduct): FormState {
 const num = (s: string) => (s.trim() === "" ? Number.NaN : Number(s));
 const optNum = (s: string) => (s.trim() === "" ? null : Number(s));
 
-export function ProductForm({ product }: { product?: MockProduct }) {
+type CategoryOption = { slug: string; name: string; nameBn: string | null };
+
+export function ProductForm({ product, categories }: { product?: ProductEditData; categories: CategoryOption[] }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => initialState(product));
   const [slugTouched, setSlugTouched] = useState(Boolean(product));
@@ -173,7 +186,6 @@ export function ProductForm({ product }: { product?: MockProduct }) {
 
   const totalStock =
     form.type === "SIMPLE" ? Number(form.stock) || 0 : variants.reduce((n, v) => n + (v.isActive ? Number(v.stock) || 0 : 0), 0);
-  const previewColor = form.colors[0]?.hex ?? "#d9cdb5";
 
   function submit() {
     const common = {
@@ -226,10 +238,11 @@ export function ProductForm({ product }: { product?: MockProduct }) {
       const result = await saveProduct(payload);
       if (result.ok) {
         setErrors({});
-        toast.success("Product validated", {
-          description: "Demo mode — saving to the database isn't wired up yet.",
+        toast.success(product ? "Changes saved" : "Product created", {
+          description: form.status === "ACTIVE" ? "Live on the storefront." : undefined,
         });
-        if (!product) router.push("/admin/products");
+        if (product) router.refresh();
+        else router.push(`/admin/products/${result.id}/edit`);
       } else {
         setErrors(result.fieldErrors);
         toast.error(result.message);
@@ -327,13 +340,13 @@ export function ProductForm({ product }: { product?: MockProduct }) {
           <Card>
             <CardHeader>
               <CardTitle className="font-sans text-base">Media</CardTitle>
-              <CardDescription>First image is the cover. Previews only until storage is connected.</CardDescription>
+              <CardDescription>Uploads are previews only until image storage (Supabase Storage) is connected.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
                 {product &&
                   product.colors.map((c) => (
-                    <ProductArt key={c.name} category={product.category} color={c.hex} className="aspect-[3/4] rounded-md" />
+                    <ProductArt key={c.name} kind={product.art} color={c.hex} className="aspect-[3/4] rounded-md" />
                   ))}
                 {uploads.map((src) => (
                   <div key={src} className="group relative aspect-[3/4] overflow-hidden rounded-md border">
@@ -611,7 +624,8 @@ export function ProductForm({ product }: { product?: MockProduct }) {
                   <SelectContent>
                     {categories.map((c) => (
                       <SelectItem key={c.slug} value={c.slug}>
-                        {c.name} <span className="font-bengali text-muted-foreground">· {c.nameBn}</span>
+                        {c.name}
+                        {c.nameBn && <span className="font-bengali text-muted-foreground">· {c.nameBn}</span>}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -627,8 +641,8 @@ export function ProductForm({ product }: { product?: MockProduct }) {
             </CardHeader>
             <CardContent className="space-y-3">
               <ProductArt
-                category={(form.category || "panjabi") as CategorySlug}
-                color={product && !form.colors.length ? product.colors[0].hex : previewColor}
+                kind={categoryArt(form.category).kind}
+                color={form.colors[0]?.hex ?? categoryArt(form.category).productColor}
                 className="aspect-[3/4] rounded-md"
               />
               <div>

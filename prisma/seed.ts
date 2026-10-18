@@ -1,13 +1,15 @@
 /**
  * Idempotent seed: safe to run repeatedly (`npm run db:seed`).
- * Creates the first admin, shipping zones, core attributes, base
- * categories/collections and default settings.
+ * Creates the first admin, shipping zones, core attributes, storefront
+ * categories/collections, the starter catalog (prisma/data/catalog.ts) and default settings.
  */
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { settingSchemas, type SettingKey } from "../src/lib/validations/settings";
+import { optionKeyFor, valueSlug, variantTitle } from "../src/lib/catalog/variant-keys";
+import { buildVariants, categories, products } from "./data/catalog";
 
 const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DIRECT_URL or DATABASE_URL must be set");
@@ -88,14 +90,12 @@ async function seedAttributes() {
 }
 
 async function seedCatalogStructure() {
-  const categories = [
-    { name: "Men", slug: "men", position: 0 },
-    { name: "Women", slug: "women", position: 1 },
-    { name: "Accessories", slug: "accessories", position: 2 },
-  ];
-  for (const c of categories) {
-    await db.category.upsert({ where: { slug: c.slug }, update: {}, create: c });
+  for (const [position, c] of categories.entries()) {
+    const data = { name: c.name, nameBn: c.nameBn, description: c.blurb, position };
+    await db.category.upsert({ where: { slug: c.slug }, update: {}, create: { slug: c.slug, ...data } });
   }
+  // Placeholder categories from the original scaffold — remove only while still empty.
+  await db.category.deleteMany({ where: { slug: { in: ["men", "women", "accessories"] }, products: { none: {} } } });
   await db.collection.upsert({
     where: { slug: "new-arrivals" },
     update: {},
@@ -112,11 +112,81 @@ async function seedSettings() {
   console.log("✔ Default settings");
 }
 
+/** Upserts a Color/Size value and returns its ID (keeps existing swatches). */
+async function attributeValueId(attributeSlug: "color" | "size", value: string, swatchHex?: string) {
+  const attribute = await db.attribute.findUniqueOrThrow({ where: { slug: attributeSlug } });
+  const slug = valueSlug(value);
+  const row = await db.attributeValue.upsert({
+    where: { attributeId_slug: { attributeId: attribute.id, slug } },
+    update: {},
+    create: { attributeId: attribute.id, value, slug, swatchHex },
+  });
+  return { attributeId: attribute.id, attributeValueId: row.id };
+}
+
+async function seedProducts() {
+  let created = 0;
+  for (const p of products) {
+    // Idempotent: never overwrite a product an admin may have edited.
+    if (await db.product.findUnique({ where: { slug: p.slug }, select: { id: true } })) continue;
+
+    const variants = buildVariants(p);
+    const variantRows = [];
+    for (const [position, v] of variants.entries()) {
+      const options = [];
+      if (v.color) options.push(await attributeValueId("color", v.color, p.colors.find((c) => c.name === v.color)?.hex));
+      if (v.size) options.push(await attributeValueId("size", v.size));
+      variantRows.push({
+        sku: v.sku,
+        title: variantTitle(v.color, v.size),
+        optionKey: optionKeyFor(options.map((o) => o.attributeValueId)),
+        price: v.price,
+        compareAtPrice: v.compareAtPrice,
+        costPrice: Math.round(v.price * 0.45),
+        stock: v.stock,
+        isDefault: position === 0,
+        position,
+        options: { create: options },
+      });
+    }
+
+    await db.product.create({
+      data: {
+        name: p.name,
+        nameBn: p.nameBn,
+        slug: p.slug,
+        type: p.type,
+        status: p.status,
+        badge: p.badge ?? null,
+        shortDescription: p.shortDescription,
+        description: p.descriptionBn,
+        fabricCare: `${p.fabric}\n${p.care}`,
+        tags: [p.category, ...(p.badge ? [p.badge.toLowerCase()] : [])],
+        isFeatured: p.isFeatured,
+        minPrice: p.price,
+        maxPrice: p.price,
+        totalStock: p.stock,
+        ratingAvg: p.rating,
+        reviewCount: p.reviewCount,
+        metaTitle: p.name,
+        metaDescription: p.shortDescription,
+        publishedAt: p.status === "ACTIVE" ? new Date(p.createdAt) : null,
+        createdAt: new Date(p.createdAt),
+        category: { connect: { slug: p.category } },
+        variants: { create: variantRows },
+      },
+    });
+    created++;
+  }
+  console.log(`✔ Products (${created} created, ${products.length - created} already present)`);
+}
+
 async function main() {
   await seedAdmin();
   await seedShippingZones();
   await seedAttributes();
   await seedCatalogStructure();
+  await seedProducts();
   await seedSettings();
 }
 

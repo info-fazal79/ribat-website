@@ -5,18 +5,20 @@ import { InstagramFeed } from "@/components/storefront/home/instagram-feed";
 import { Testimonials } from "@/components/storefront/home/testimonials";
 import { TrendingProducts } from "@/components/storefront/home/trending-products";
 import { ValueProps } from "@/components/storefront/home/value-props";
-import { trendingProducts } from "@/lib/mock/catalog";
-import { heroSlides, instagramPosts, testimonials } from "@/lib/mock/content";
+import { heroSlides, instagramPosts, testimonials } from "@/lib/content/home";
+import { getActiveProducts } from "@/server/services/catalog";
 
-// TODO(storefront): swap mock data for cached reads from src/server/services once the DB is seeded.
-export default function HomePage() {
+// Catalog comes from the DB (cached, tag "catalog"); hero/testimonials/Instagram are static
+// content until they move to the Banner model / Settings.
+export default async function HomePage() {
+  const featured = await getActiveProducts({ featured: true });
   return (
     <>
       <HeroSlider slides={heroSlides} />
       <ValueProps />
       <CategoryGrid />
       <EditorialBanner />
-      <TrendingProducts products={trendingProducts} />
+      <TrendingProducts products={featured} />
       <Testimonials items={testimonials} />
       <InstagramFeed posts={instagramPosts} />
     </>

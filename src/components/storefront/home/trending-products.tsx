@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { ProductCard } from "@/components/storefront/product-card";
 import { SectionHeading } from "@/components/storefront/home/section-heading";
-import { categories, type CategorySlug, type MockProduct } from "@/lib/mock/catalog";
+import type { CatalogProduct } from "@/lib/catalog/types";
 import { cn } from "@/lib/utils";
 
-export function TrendingProducts({ products }: { products: MockProduct[] }) {
-  const [filter, setFilter] = useState<CategorySlug | "all">("all");
-  const present = categories.filter((c) => products.some((p) => p.category === c.slug));
-  const visible = filter === "all" ? products : products.filter((p) => p.category === filter);
+export function TrendingProducts({ products }: { products: CatalogProduct[] }) {
+  const [filter, setFilter] = useState<string>("all");
+  // Tabs for the categories that actually have featured products, in first-seen order.
+  const tabs = products.reduce<{ slug: string; name: string }[]>(
+    (acc, p) => (p.category && !acc.some((c) => c.slug === p.category!.slug) ? [...acc, p.category] : acc),
+    [],
+  );
+  const visible = filter === "all" ? products : products.filter((p) => p.category?.slug === filter);
 
   return (
     <section className="container mx-auto px-4 py-20 md:py-28">
@@ -21,7 +25,7 @@ export function TrendingProducts({ products }: { products: MockProduct[] }) {
       />
 
       <div className="-mx-4 mb-10 flex gap-6 overflow-x-auto border-b px-4 [scrollbar-width:none]" role="tablist">
-        {[{ slug: "all" as const, name: "All" }, ...present].map((c) => (
+        {[{ slug: "all", name: "All" }, ...tabs].map((c) => (
           <button
             key={c.slug}
             type="button"

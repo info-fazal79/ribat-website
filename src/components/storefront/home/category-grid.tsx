@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { EditorialArt } from "@/components/storefront/art";
 import { SectionHeading } from "@/components/storefront/home/section-heading";
-import { activeProducts, categories } from "@/lib/mock/catalog";
+import { getCategories } from "@/server/services/catalog";
 import { cn } from "@/lib/utils";
 
 // Bento layout on desktop: Panjabi hero tile + four supporting tiles.
@@ -14,7 +14,9 @@ const layout = [
   "md:col-span-1 md:row-span-1",
 ];
 
-export function CategoryGrid() {
+export async function CategoryGrid() {
+  // Bento layout fits five tiles; extra categories are reachable from the nav and Shop All.
+  const categories = (await getCategories()).slice(0, 5);
   return (
     <section className="container mx-auto px-4 py-20 md:py-28">
       <SectionHeading
@@ -26,8 +28,8 @@ export function CategoryGrid() {
       />
       <div className="grid auto-rows-[220px] grid-cols-2 gap-3 md:auto-rows-[260px] md:grid-cols-4 md:gap-4">
         {categories.map((category, i) => {
-          const count = activeProducts.filter((p) => p.category === category.slug).length;
-          const light = category.slug !== "thobe" && category.slug !== "casual";
+          // Light-toned tiles (thobe, casual) need dark text.
+          const light = category.art !== "thobe" && category.art !== "casual";
           return (
             <Link
               key={category.slug}
@@ -38,7 +40,7 @@ export function CategoryGrid() {
                 layout[i],
               )}
             >
-              <EditorialArt category={category.slug} tone={category.tone} />
+              <EditorialArt kind={category.art} tone={category.tone} />
               <div
                 className={cn(
                   "absolute inset-0 bg-gradient-to-t via-transparent to-transparent",
@@ -57,7 +59,7 @@ export function CategoryGrid() {
                     {category.name}
                   </h3>
                   <p className="mt-1 hidden text-xs opacity-80 sm:block">
-                    {category.blurb} · {count} styles
+                    {category.description} · {category.productCount} styles
                   </p>
                 </div>
                 <span className="grid size-10 shrink-0 place-items-center rounded-full border border-current/40 transition group-hover:border-current">

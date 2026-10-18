@@ -4,13 +4,12 @@ import { AlertTriangle, ArrowRight, Banknote, Clock, ShoppingBag } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DemoDataNotice, StatCard } from "@/components/admin/page-header";
+import { StatCard } from "@/components/admin/page-header";
 import { OrderStatusBadge } from "@/components/admin/status-badge";
-import { orders } from "@/lib/mock/admin";
-import { products } from "@/lib/mock/catalog";
 import { formatDateTime } from "@/lib/format";
 import { formatBDT } from "@/lib/money";
 import { requireStaff } from "@/server/auth/guards";
+import { getDashboardStats } from "@/server/services/admin";
 
 export default function AdminDashboardPage() {
   return (
@@ -32,25 +31,23 @@ async function Greeting() {
 
 async function DashboardContent() {
   await requireStaff();
-  // TODO(admin): dashboard service with real aggregates (today / 30d) once on Prisma.
-  const today = orders.filter((o) => o.createdAt.startsWith("2026-10-18")).length;
-  const pending = orders.filter((o) => o.status === "PENDING").length;
-  const revenue = orders
-    .filter((o) => o.status !== "CANCELLED" && o.status !== "RETURNED")
-    .reduce((n, o) => n + o.total, 0);
-  const lowStock = products.filter((p) => p.status === "ACTIVE" && p.stock <= 10);
+  const stats = await getDashboardStats();
 
   return (
     <>
-      <DemoDataNotice />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Today's Orders" value={String(today)} icon={<ShoppingBag className="size-4" />} />
-        <StatCard label="Pending Orders" value={String(pending)} hint="Awaiting phone confirmation" icon={<Clock className="size-4 text-amber-600" />} />
-        <StatCard label="Revenue (30d)" value={formatBDT(revenue)} icon={<Banknote className="size-4" />} />
+        <StatCard label="Today's Orders" value={String(stats.today)} hint="Since midnight (Dhaka)" icon={<ShoppingBag className="size-4" />} />
+        <StatCard
+          label="Pending Orders"
+          value={String(stats.pending)}
+          hint="Awaiting phone confirmation"
+          icon={<Clock className="size-4 text-amber-600" />}
+        />
+        <StatCard label="Revenue (30d)" value={formatBDT(stats.revenue30d)} hint="Excl. cancelled & returned" icon={<Banknote className="size-4" />} />
         <StatCard
           label="Low Stock"
-          value={String(lowStock.length)}
-          hint={lowStock.map((p) => p.name.split(" ").slice(0, 2).join(" ")).join(", ") || "All good"}
+          value={String(stats.lowStock.length)}
+          hint={<span className="line-clamp-1">{stats.lowStock.join(", ") || "All good"}</span>}
           icon={<AlertTriangle className="size-4 text-amber-600" />}
         />
       </div>
@@ -74,7 +71,14 @@ async function DashboardContent() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders.slice(0, 6).map((o) => (
+            {stats.recent.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
+                  No orders yet.
+                </TableCell>
+              </TableRow>
+            )}
+            {stats.recent.map((o) => (
               <TableRow key={o.id}>
                 <TableCell className="pl-4">
                   <p className="font-mono text-sm">{o.orderNumber}</p>

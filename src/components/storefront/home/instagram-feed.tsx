@@ -1,8 +1,8 @@
 import { Heart } from "lucide-react";
 import { GeometricPattern, Silhouette } from "@/components/storefront/art";
 import { SectionHeading } from "@/components/storefront/home/section-heading";
-import type { CategorySlug } from "@/lib/mock/catalog";
-import { instagramHandle, type InstagramPost } from "@/lib/mock/content";
+import type { ArtKind } from "@/lib/catalog/types";
+import { instagramHandle, type InstagramPost } from "@/lib/content/home";
 
 // lucide v1 dropped brand icons; inline glyph.
 export function InstagramIcon({ className }: { className?: string }) {
@@ -15,7 +15,7 @@ export function InstagramIcon({ className }: { className?: string }) {
   );
 }
 
-const art: CategorySlug[] = ["panjabi", "abaya", "fragrance", "panjabi", "thobe", "casual"];
+const art: ArtKind[] = ["panjabi", "abaya", "fragrance", "panjabi", "thobe", "casual"];
 
 export function InstagramFeed({ posts }: { posts: InstagramPost[] }) {
   const href = `https://instagram.com/${instagramHandle.slice(1)}`;
@@ -41,7 +41,7 @@ export function InstagramFeed({ posts }: { posts: InstagramPost[] }) {
           >
             <GeometricPattern color={post.tone.ink} opacity={0.2} />
             <Silhouette
-              category={art[i % art.length]}
+              kind={art[i % art.length]}
               fill={`color-mix(in oklch, ${post.tone.ink} 35%, ${post.tone.from})`}
               stroke={post.tone.ink}
               className="absolute inset-x-0 bottom-[6%] mx-auto h-[78%] w-auto transition-transform duration-700 group-hover:scale-110"
