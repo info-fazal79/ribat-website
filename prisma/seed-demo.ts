@@ -2,6 +2,7 @@
  * Opt-in demo data: sample orders and landing pages so the admin isn't empty.
  *   npm run db:seed:demo               → insert (idempotent)
  *   npm run db:seed:demo -- --remove   → delete everything this script created
+ *   npm run db:seed:demo -- --refresh  → rebuild demo pages' sections from current templates
  * Demo orders use the "DEMO-" number prefix and are tagged in adminNote.
  */
 import "dotenv/config";
@@ -122,8 +123,22 @@ async function seedOrders(landingIds: Map<string, string>) {
   console.log(`✔ Orders (${created} created, ${orders.length - created} already present)`);
 }
 
+/** Rebuild demo pages' sections from the current templates (keeps offers, stats and status). */
+async function refreshSections() {
+  for (const lp of landingPages) {
+    const page = await db.landingPage.findUnique({ where: { slug: lp.slug }, include: { product: true } });
+    if (!page) continue;
+    await db.landingPage.update({
+      where: { id: page.id },
+      data: { sections: buildTemplateSections(lp.template, page.product.nameBn ?? page.product.name) },
+    });
+  }
+  console.log(`✔ Refreshed sections on ${landingPages.length} demo landing pages`);
+}
+
 async function main() {
   if (process.argv.includes("--remove")) return remove();
+  if (process.argv.includes("--refresh")) return refreshSections();
   const landingIds = await seedLandingPages();
   await seedOrders(landingIds);
 }

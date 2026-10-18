@@ -29,3 +29,15 @@ export function discountPercent(price: MoneyInput, compareAt: MoneyInput): numbe
   if (c <= 0 || p >= c) return 0;
   return Math.round(((c - p) / c) * 100);
 }
+
+const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
+
+/** "1,450" → "১,৪৫০" (Bengali numerals for landing pages / Bengali copy). */
+export function toBnDigits(value: string | number): string {
+  return String(value).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
+}
+
+/** formatBDTBn(1450) → "৳১,৪৫০" */
+export function formatBDTBn(value: MoneyInput): string {
+  return toBnDigits(formatBDT(value));
+}

@@ -16,24 +16,10 @@ import {
   Plus,
   Rocket,
   ShoppingCart,
-  Video,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  createLandingPage,
-  duplicateLandingPage,
-  setLandingPageStatus,
-} from "@/app/(admin)/admin/landing-pages/actions";
+import { duplicateLandingPage, setLandingPageStatus } from "@/app/(admin)/admin/landing-pages/actions";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,35 +27,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LandingStatusBadge, StatusPill } from "@/components/admin/status-badge";
 import { StatCard } from "@/components/admin/page-header";
 import type { AdminLandingPage } from "@/lib/admin/types";
 import { formatCompact, formatDate } from "@/lib/format";
-import { landingTemplates, type LandingTemplate } from "@/lib/landing/templates";
 import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-const templateIcons: Record<LandingTemplate, typeof FileText> = {
-  "bengali-longform": FileText,
-  minimal: ShoppingCart,
-  "video-first": Video,
-};
-
-const slugify = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-");
-
-type ProductOption = { id: string; name: string; price: number };
-
-export function LandingPagesManager({ pages, products }: { pages: AdminLandingPage[]; products: ProductOption[] }) {
+export function LandingPagesManager({ pages }: { pages: AdminLandingPage[] }) {
   const [filter, setFilter] = useState<"ALL" | AdminLandingPage["status"]>("ALL");
 
   const live = pages.filter((p) => p.status === "PUBLISHED");
@@ -109,7 +75,11 @@ export function LandingPagesManager({ pages, products }: { pages: AdminLandingPa
               </button>
             ))}
           </div>
-          <CreateLandingDialog products={products} />
+          <Button asChild>
+            <Link href="/admin/landing-pages/new">
+              <Plus /> New landing page
+            </Link>
+          </Button>
         </div>
 
         <Table>
@@ -142,7 +112,9 @@ export function LandingPagesManager({ pages, products }: { pages: AdminLandingPa
                         <FileText className="size-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="font-medium">{p.title}</p>
+                        <Link href={`/admin/landing-pages/${p.id}/edit`} className="font-medium hover:underline">
+                          {p.title}
+                        </Link>
                         <p className="font-mono text-[11px] text-muted-foreground">/lp/{p.slug}</p>
                         <p className="text-[11px] text-muted-foreground">
                           {p.sectionCount} sections · updated {formatDate(p.updatedAt)}
@@ -217,8 +189,10 @@ function RowActions({ page }: { page: AdminLandingPage }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => toast.info("The section editor is the next milestone.")}>
-          <Pencil /> Edit sections
+        <DropdownMenuItem asChild>
+          <Link href={`/admin/landing-pages/${page.id}/edit`}>
+            <Pencil /> Edit in builder
+          </Link>
         </DropdownMenuItem>
         {page.status === "PUBLISHED" && (
           <DropdownMenuItem asChild>
@@ -258,145 +232,5 @@ function RowActions({ page }: { page: AdminLandingPage }) {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function CreateLandingDialog({ products }: { products: ProductOption[] }) {
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [productId, setProductId] = useState("");
-  const [template, setTemplate] = useState<LandingTemplate>("bengali-longform");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function reset() {
-    setTitle("");
-    setSlug("");
-    setSlugTouched(false);
-    setProductId("");
-    setTemplate("bengali-longform");
-    setError(null);
-  }
-
-  function submit() {
-    startTransition(async () => {
-      const result = await createLandingPage({ title, slug, productId, template });
-      if (!result.ok) return setError(result.message);
-      toast.success(`“${title}” created as a draft`);
-      setOpen(false);
-      reset();
-    });
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) reset();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button>
-          <Plus /> New landing page
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-sans text-lg">New landing page</DialogTitle>
-          <DialogDescription>One-page checkout for a single product — ideal for Facebook & TikTok ads.</DialogDescription>
-        </DialogHeader>
-        <form
-          id="create-lp"
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="lp-title">Page name</Label>
-            <Input
-              id="lp-title"
-              value={title}
-              placeholder="e.g. Royal Oud — Eid Offer"
-              onChange={(e) => {
-                setTitle(e.target.value);
-                if (!slugTouched) setSlug(slugify(e.target.value));
-              }}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="lp-slug">URL</Label>
-            <div className="flex items-center rounded-lg border focus-within:ring-3 focus-within:ring-ring/50">
-              <span className="pl-2.5 text-sm text-muted-foreground">/lp/</span>
-              <input
-                id="lp-slug"
-                value={slug}
-                onChange={(e) => {
-                  setSlugTouched(true);
-                  setSlug(e.target.value);
-                }}
-                className="h-8 flex-1 bg-transparent pr-2.5 font-mono text-sm outline-none"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Product</Label>
-            <Select value={productId} onValueChange={setProductId}>
-              <SelectTrigger className="w-full" aria-label="Product">
-                <SelectValue placeholder="Select a product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.name} · {formatBDT(p.price)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Template</Label>
-            <div className="grid gap-2">
-              {(Object.keys(landingTemplates) as LandingTemplate[]).map((key) => {
-                const t = landingTemplates[key];
-                const Icon = templateIcons[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    aria-pressed={template === key}
-                    onClick={() => setTemplate(key)}
-                    className={cn(
-                      "flex items-start gap-3 rounded-lg border p-3 text-left transition",
-                      template === key ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:border-foreground/30",
-                    )}
-                  >
-                    <Icon className={cn("mt-0.5 size-4", template === key ? "text-primary" : "text-muted-foreground")} />
-                    <span>
-                      <span className="block text-sm font-medium">{t.label}</span>
-                      <span className="block text-xs text-muted-foreground">{t.body}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" form="create-lp" disabled={pending}>
-            {pending && <Loader2 className="animate-spin" />}
-            Create draft
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

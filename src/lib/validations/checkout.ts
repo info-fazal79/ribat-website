@@ -27,13 +27,20 @@ export const checkoutSchema = checkoutCustomerSchema.extend({
   couponCode: z.string().trim().toUpperCase().optional(),
 });
 
-/** One-page landing checkout: picks an offer bundle instead of a cart. */
-export const landingCheckoutSchema = checkoutCustomerSchema.extend({
+/**
+ * One-page landing checkout: picks an offer bundle instead of a cart. Kept short for
+ * conversion — the delivery zone stands in for district/area. COD only for now.
+ */
+export const landingCheckoutSchema = z.object({
   landingPageId: z.string().min(1),
-  offerId: z.string().min(1),
-  variantId: z.string().min(1),
-  paymentMethod: paymentMethodSchema.default("COD"),
-  shippingZoneId: z.string().min(1),
+  offerId: z.string().min(1, "একটি অফার বেছে নিন"),
+  variantId: z.string().min(1, "সাইজ / কালার বেছে নিন"),
+  shippingZoneId: z.string().min(1, "ডেলিভারি এরিয়া বেছে নিন"),
+  customerName: z.string().trim().min(2, "আপনার নাম লিখুন").max(100),
+  customerPhone: bdPhoneSchema,
+  addressLine: z.string().trim().min(8, "সম্পূর্ণ ঠিকানা লিখুন (বাসা, রোড, থানা, জেলা)").max(300),
+  customerNote: z.string().trim().max(500).optional(),
+  utm: z.record(z.string(), z.string().max(200)).optional(),
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;

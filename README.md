@@ -27,6 +27,7 @@ npm run dev                   # http://localhost:3000  ·  admin: /login → /ad
 | `db:push` | Prototype schema without a migration |
 | `db:seed` | Idempotent seed (`prisma/seed.ts`, catalog data in `prisma/data/`) |
 | `db:seed:demo` | Opt-in demo orders & landing pages (`-- --remove` deletes them) |
+| `admin:reset-password` | Set a new admin password in the DB (prompts; `-- --email x` for another user) |
 | `db:studio` | Prisma Studio |
 
 ## Project structure

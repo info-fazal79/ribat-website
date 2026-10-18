@@ -1,7 +1,7 @@
 import "server-only";
 import { categoryArt } from "@/config/category-art";
 import type { AdminLandingPage, AdminOrder, AdminProductRow, ProductEditData } from "@/lib/admin/types";
-import { landingSections } from "@/lib/validations/landing-page";
+import { landingSections, landingTheme } from "@/lib/validations/landing-page";
 import { toNumber } from "@/lib/money";
 import { db } from "@/server/db";
 
@@ -239,4 +239,84 @@ export async function getDashboardStats() {
     lowStock: lowStock.map((p) => p.name),
     recent: recent.map((o) => ({ ...o, total: toNumber(o.total), createdAt: o.createdAt.toISOString() })),
   };
+}
+
+/** Everything the landing page builder edits. */
+export async function getLandingPageForBuilder(id: string) {
+  const p = await db.landingPage.findUnique({ where: { id }, include: { offers: { orderBy: { position: "asc" } } } });
+  if (!p) return null;
+  return {
+    id: p.id,
+    title: p.title,
+    slug: p.slug,
+    status: p.status,
+    productId: p.productId,
+    sections: landingSections.catch([]).parse(p.sections),
+    theme: landingTheme.catch({}).parse(p.theme ?? {}),
+    offers: p.offers.map((o) => ({
+      label: o.label,
+      quantity: o.quantity,
+      price: toNumber(o.price),
+      compareAtPrice: money(o.compareAtPrice),
+      badge: o.badge,
+      freeShipping: o.freeShipping,
+      isDefault: o.isDefault,
+    })),
+    allowedVariantIds: p.allowedVariantIds,
+    shippingZoneIds: p.shippingZoneIds,
+    thankYouMessage: p.thankYouMessage,
+    seoTitle: p.seoTitle,
+    seoDescription: p.seoDescription,
+    ogImageUrl: p.ogImageUrl,
+    facebookPixelId: p.facebookPixelId,
+    viewCount: p.viewCount,
+    conversionCount: p.conversionCount,
+  };
+}
+
+export type LandingBuilderData = NonNullable<Awaited<ReturnType<typeof getLandingPageForBuilder>>>;
+
+/** Products (with variants) selectable in the builder; also feeds the live preview. */
+export async function listBuilderProducts() {
+  const rows = await db.product.findMany({
+    where: { status: { not: "ARCHIVED" } },
+    orderBy: { name: "asc" },
+    include: {
+      category: { select: { slug: true } },
+      images: { orderBy: { position: "asc" }, select: { url: true, alt: true } },
+      variants: {
+        where: { isActive: true },
+        orderBy: { position: "asc" },
+        include: { options: { include: { attribute: { select: { slug: true } }, attributeValue: true } } },
+      },
+    },
+  });
+  return rows.map((p) => {
+    const art = categoryArt(p.category?.slug);
+    const variants = p.variants.map((v) => {
+      const color = v.options.find((o) => o.attribute.slug === "color")?.attributeValue;
+      const size = v.options.find((o) => o.attribute.slug === "size")?.attributeValue;
+      return { id: v.id, title: v.title, color: color?.value ?? null, colorHex: color?.swatchHex ?? null, size: size?.value ?? null, stock: v.stock };
+    });
+    return {
+      id: p.id,
+      name: p.name,
+      nameBn: p.nameBn,
+      status: p.status,
+      art: art.kind,
+      color: variants.find((v) => v.colorHex)?.colorHex ?? art.productColor,
+      images: p.images,
+      rating: toNumber(p.ratingAvg),
+      reviewCount: p.reviewCount,
+      price: toNumber(p.minPrice),
+      variants,
+    };
+  });
+}
+
+export type BuilderProduct = Awaited<ReturnType<typeof listBuilderProducts>>[number];
+
+export async function listShippingZoneOptions() {
+  const zones = await db.shippingZone.findMany({ where: { isActive: true }, orderBy: { position: "asc" } });
+  return zones.map((z) => ({ id: z.id, name: z.name, fee: toNumber(z.fee), estimatedDays: z.estimatedDays }));
 }
