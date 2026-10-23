@@ -18,11 +18,14 @@ export function MediaField({
   onChange,
   previewClassName,
   error,
+  stacked = false,
 }: {
   value: string;
   onChange: (url: string) => void;
   previewClassName?: string;
   error?: string;
+  /** Always stack preview above the buttons (narrow side panels); default switches to a row from sm. */
+  stacked?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -67,7 +70,8 @@ export function MediaField({
           upload(e.dataTransfer.files?.[0]);
         }}
         className={cn(
-          "flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center",
+          "flex flex-col gap-3 rounded-lg border p-3",
+          !stacked && "sm:flex-row sm:items-center",
           !value && "border-2 border-dashed",
           dragging && "border-primary bg-primary/5",
           error && "border-destructive",
@@ -75,7 +79,8 @@ export function MediaField({
       >
         <div
           className={cn(
-            "flex h-28 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-[repeating-conic-gradient(var(--muted)_0_25%,transparent_0_50%)] bg-[length:16px_16px] sm:w-40",
+            "flex h-28 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-[repeating-conic-gradient(var(--muted)_0_25%,transparent_0_50%)] bg-[length:16px_16px]",
+            !stacked && "sm:w-40",
             previewClassName,
           )}
         >

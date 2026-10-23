@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   ArrowUp,
   ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Eye,
   EyeOff,
@@ -16,6 +17,10 @@ import {
   Maximize2,
   Minimize2,
   Monitor,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
+  PinOff,
   Plus,
   Smartphone,
   Tablet,
@@ -31,16 +36,18 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { newHomeSection, type HomeSection, type HomeSectionType } from "@/lib/validations/homepage";
 import { cn } from "@/lib/utils";
 
+/** Device viewports. Desktop fills the canvas height; tablet/phone use a fixed screen size. */
 const DEVICES = {
-  desktop: { label: "Desktop", width: 1440, icon: Monitor },
-  tablet: { label: "Tablet", width: 768, icon: Tablet },
-  mobile: { label: "Mobile", width: 375, icon: Smartphone },
+  desktop: { label: "Desktop", width: 1440, height: null, bezel: 0, icon: Monitor },
+  tablet: { label: "Tablet", width: 768, height: 1024, bezel: 14, icon: Tablet },
+  mobile: { label: "Mobile", width: 375, height: 812, bezel: 12, icon: Smartphone },
 } as const;
 type Device = keyof typeof DEVICES;
 
+const PANEL = { min: 360, max: 520, default: 420 } as const;
 const PREVIEW_URL = "/admin/home-preview";
 
-/** Shopify-style theme editor for the homepage: section tree + settings on the left, live preview right. */
+/** Shopify/Elementor-style homepage editor: section tree + settings on the left, live preview right. */
 export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; categories: BuilderCategory[] }) {
   const router = useRouter();
   const [sections, setSections] = useState(initial);
@@ -56,14 +63,23 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
   const selectedIndex = sections.findIndex((s) => s.id === selectedId);
   const selected = selectedIndex >= 0 ? sections[selectedIndex] : null;
 
-  // --- Preview iframe messaging ---------------------------------------------------
+  // Panel: open/closed, docked/floating, resizable (desktop only).
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [floating, setFloating] = useState(false);
+  const [panelWidth, setPanelWidth] = useState<number>(PANEL.default);
+  const [resizing, setResizing] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+
+  // --- Preview iframe messaging (draft changes stream to the preview as you type) ---------
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const post = useCallback((msg: ToPreview) => iframeRef.current?.contentWindow?.postMessage(msg, window.location.origin), []);
-  const latest = useRef({ sections, selectedId });
+  // Full screen is a clean inspection view: no selection outline.
+  const previewSelected = fullscreen ? null : selectedId;
+  const latest = useRef({ sections, selectedId: previewSelected });
   useEffect(() => {
-    latest.current = { sections, selectedId };
-    post({ type: "ribat:sections", sections, selectedId });
-  }, [sections, selectedId, post]);
+    latest.current = { sections, selectedId: previewSelected };
+    post({ type: "ribat:sections", sections, selectedId: previewSelected });
+  }, [sections, previewSelected, post]);
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin || e.source !== iframeRef.current?.contentWindow) return;
@@ -71,6 +87,7 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
       if (e.data.type === "ribat:ready") post({ type: "ribat:sections", ...latest.current });
       else {
         setSelectedId(e.data.id);
+        setPanelOpen(true);
         setMobileView("controls");
       }
     };
@@ -96,7 +113,7 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // --- Section operations ---------------------------------------------------------
+  // --- Section operations ---------------------------------------------------------------
   const update = (id: string, next: HomeSection) => setSections((all) => all.map((s) => (s.id === id ? next : s)));
   const move = (from: number, to: number) => {
     if (to < 0 || to >= sections.length || from === to) return;
@@ -117,7 +134,6 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
   };
   const add = (type: HomeSectionType) => {
     const section = newHomeSection(type);
-    // Insert after the selected section, else at the end.
     const at = selectedIndex >= 0 ? selectedIndex + 1 : sections.length;
     const next = [...sections];
     next.splice(at, 0, section);
@@ -146,28 +162,62 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
       if (result.ok) {
         setErrors({});
         setSaved(JSON.stringify(sections));
-        toast.success("Homepage saved — live on the storefront");
+        toast.success("Changes saved — live on the storefront");
         router.refresh();
       } else {
         setErrors(result.fieldErrors);
         const m = Object.keys(result.fieldErrors)[0]?.match(/^sections\.(\d+)\./);
-        if (m && sections[Number(m[1])]) setSelectedId(sections[Number(m[1])].id);
+        if (m && sections[Number(m[1])]) {
+          setSelectedId(sections[Number(m[1])].id);
+          setPanelOpen(true);
+        }
         toast.error(result.message);
       }
     });
   }
+  function discard() {
+    setSections(JSON.parse(saved) as HomeSection[]);
+    setErrors({});
+    toast("Changes discarded — back to the last saved version");
+  }
+
+  // Panel resize: drag the right edge (the iframe ignores the pointer meanwhile).
+  const onResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setResizing(true);
+  };
+  const onResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizing || !panelRef.current) return;
+    const left = panelRef.current.getBoundingClientRect().left;
+    setPanelWidth(Math.round(Math.min(PANEL.max, Math.max(PANEL.min, e.clientX - left))));
+  };
+  const onResizeEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    setResizing(false);
+  };
 
   const sectionHasError = (i: number) => Object.keys(errors).some((k) => k.startsWith(`sections.${i}.`));
 
   return (
-    <div className="flex h-screen min-h-0 flex-col">
+    <div className={cn("flex h-screen min-h-0 flex-col", resizing && "cursor-col-resize select-none")}>
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-background px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/admin/appearance" aria-label="Back to Appearance">
+            <Link href="/admin/appearance?tab=builder" aria-label="Back to Appearance">
               <ArrowLeft />
             </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden lg:inline-flex"
+            onClick={() => setPanelOpen((o) => !o)}
+            aria-label={panelOpen ? "Hide settings panel" : "Show settings panel"}
+            title={panelOpen ? "Hide settings panel" : "Show settings panel"}
+          >
+            {panelOpen ? <PanelLeftClose /> : <PanelLeftOpen />}
           </Button>
           <div className="min-w-0">
             <p className="truncate font-medium">Homepage Builder</p>
@@ -190,63 +240,102 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
             </button>
           ))}
         </div>
+        <div className="hidden items-center gap-0.5 rounded-lg bg-muted p-0.5 lg:flex" role="radiogroup" aria-label="Device">
+          <DeviceButtons device={device} onChange={setDevice} />
+        </div>
         <div className="flex items-center gap-2">
-          {dirty && <span className="hidden text-xs text-amber-700 sm:inline">Unsaved changes</span>}
+          {dirty && <span className="hidden text-xs text-amber-700 xl:inline">Unsaved changes</span>}
+          <Button variant="ghost" size="sm" onClick={() => setFullscreen(true)} className="hidden lg:inline-flex">
+            <Maximize2 /> Full screen
+          </Button>
           <Button variant="outline" size="sm" asChild className="hidden sm:inline-flex">
             <Link href="/" target="_blank">
               <ExternalLink /> View store
             </Link>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!dirty || pending}
-            onClick={() => {
-              setSections(JSON.parse(saved) as HomeSection[]);
-              setErrors({});
-            }}
-          >
+          <Button variant="outline" size="sm" disabled={!dirty || pending} onClick={discard}>
             Discard
           </Button>
           <Button id="home-builder-save" size="sm" onClick={save} disabled={!dirty || pending}>
             {pending && <Loader2 className="animate-spin" />}
-            Save
+            Save changes
           </Button>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        {/* Left: section tree or the selected section's settings */}
+      <div className="relative flex min-h-0 flex-1">
+        {/* Settings panel: docked or floating over the canvas; resizable on desktop. */}
         <aside
+          ref={panelRef}
+          style={{ "--panel-w": `${panelWidth}px` } as React.CSSProperties}
           className={cn(
-            "min-h-0 w-full shrink-0 flex-col border-r bg-background lg:flex lg:w-[380px]",
+            "min-h-0 w-full flex-col bg-background lg:w-[var(--panel-w)]",
             mobileView === "controls" ? "flex" : "hidden",
+            panelOpen ? "lg:flex" : "lg:hidden",
+            floating
+              ? "lg:absolute lg:top-3 lg:bottom-3 lg:left-3 lg:z-30 lg:overflow-hidden lg:rounded-xl lg:border lg:shadow-2xl"
+              : "lg:relative lg:shrink-0 lg:border-r",
           )}
         >
-          {selected ? (
-            <>
-              <div className="flex items-center gap-2 border-b px-3 py-2.5">
+          <div className="flex items-center gap-1 border-b px-3 py-2">
+            {selected ? (
+              <>
                 <Button variant="ghost" size="icon-sm" onClick={() => setSelectedId(null)} aria-label="Back to sections">
                   <ChevronLeft />
                 </Button>
                 <SectionIcon type={selected.type} />
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold">{SECTION_META[selected.type].label}</p>
-                <Switch checked={selected.enabled} onChange={(enabled) => update(selected.id, { ...selected, enabled })} label={selected.enabled ? "Visible" : "Hidden"} />
+                <p className="min-w-0 flex-1 truncate pl-1 text-sm font-semibold">{SECTION_META[selected.type].label}</p>
+              </>
+            ) : (
+              <p className="flex-1 px-1 text-sm font-semibold">Sections</p>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              onClick={() => setFloating((f) => !f)}
+              aria-label={floating ? "Dock panel to the side" : "Float panel over the preview"}
+              title={floating ? "Dock to side" : "Float panel"}
+            >
+              {floating ? <PinOff /> : <Pin />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="hidden lg:inline-flex"
+              onClick={() => setPanelOpen(false)}
+              aria-label="Collapse settings panel"
+              title="Collapse panel"
+            >
+              <ChevronLeft />
+            </Button>
+          </div>
+
+          {selected ? (
+            <>
+              <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
+                <p className="min-w-0 text-xs text-muted-foreground">{SECTION_META[selected.type].description}</p>
+                <Switch
+                  checked={selected.enabled}
+                  onChange={(enabled) => update(selected.id, { ...selected, enabled })}
+                  label={selected.enabled ? "Visible" : "Hidden"}
+                />
               </div>
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 <SectionEditor
+                  key={selected.id}
                   section={selected}
                   categories={categories}
                   err={(path) => errors[`sections.${selectedIndex}.${path}`]}
                   onChange={(next) => update(selected.id, next)}
                 />
               </div>
-              <div className="flex justify-between border-t px-3 py-2">
+              <div className="flex justify-between gap-2 border-t px-3 py-2">
                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => remove(selected)}>
                   <Trash2 /> Remove section
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setSelectedId(null)}>
-                  Done
+                  <ChevronLeft /> All sections
                 </Button>
               </div>
             </>
@@ -260,7 +349,7 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
                 >
                   Always first — edit in Appearance → Hero Slider
                 </Link>
-                <p className="px-1 pt-3 pb-1 text-[11px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">Sections</p>
+                <p className="px-1 pt-3 pb-1 text-[11px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">Homepage sections</p>
                 {sections.length === 0 && <p className="px-1 py-6 text-center text-sm text-muted-foreground">No sections — add one below.</p>}
                 <ul onDragOver={(e) => dragId && e.preventDefault()} onDrop={drop}>
                   {sections.map((section, i) => (
@@ -301,7 +390,9 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
                           <SectionIcon type={section.type} />
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-medium">{SECTION_META[section.type].label}</span>
-                            <span className="block truncate text-xs text-muted-foreground">{sectionSummary(section)}</span>
+                            <span className="block truncate text-xs text-muted-foreground" title={sectionSummary(section)}>
+                              {sectionSummary(section)}
+                            </span>
                           </span>
                         </button>
                         <Button variant="ghost" size="icon-xs" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up">
@@ -340,53 +431,78 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
               </div>
             </>
           )}
+
+          {/* Resize handle (desktop) */}
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize settings panel"
+            aria-valuemin={PANEL.min}
+            aria-valuemax={PANEL.max}
+            aria-valuenow={panelWidth}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft") setPanelWidth((w) => Math.max(PANEL.min, w - 20));
+              if (e.key === "ArrowRight") setPanelWidth((w) => Math.min(PANEL.max, w + 20));
+            }}
+            onPointerDown={onResizeStart}
+            onPointerMove={onResizeMove}
+            onPointerUp={onResizeEnd}
+            onPointerCancel={onResizeEnd}
+            onDoubleClick={() => setPanelWidth(PANEL.default)}
+            title="Drag to resize · double-click to reset"
+            className={cn(
+              "absolute inset-y-0 -right-1 z-10 hidden w-2 cursor-col-resize lg:block",
+              "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent after:transition-colors hover:after:bg-primary focus-visible:outline-none focus-visible:after:bg-primary",
+              resizing && "after:bg-primary",
+            )}
+          />
         </aside>
 
-        {/* Right: live preview (stays mounted; full screen just re-positions it) */}
+        {/* Re-open tab when the panel is collapsed */}
+        {!panelOpen && (
+          <button
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            className="absolute top-1/2 left-0 z-20 hidden -translate-y-1/2 items-center gap-1 rounded-r-lg border border-l-0 bg-background py-3 pr-1.5 pl-1 text-xs font-medium shadow-md hover:bg-muted lg:flex"
+            aria-label="Show settings panel"
+          >
+            <ChevronRight className="size-4" />
+            <span className="[writing-mode:vertical-rl]">Sections</span>
+          </button>
+        )}
+
+        {/* Live preview canvas. Full screen re-positions the same element so the iframe never reloads. */}
         <section
           className={cn(
-            "min-w-0 flex-1 flex-col bg-muted/60 lg:flex",
+            "min-w-0 flex-1 flex-col lg:flex",
             mobileView === "preview" ? "flex" : "hidden",
-            fullscreen && "fixed inset-0 z-50 flex bg-neutral-900",
+            fullscreen ? cn("fixed inset-0 z-[60] flex", device === "desktop" ? "bg-background" : "bg-neutral-900") : "bg-muted/60",
           )}
         >
-          <div className={cn("flex shrink-0 items-center justify-center gap-2 border-b px-3 py-2", fullscreen ? "border-white/10 bg-neutral-900" : "bg-background/80")}>
-            <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5" role="radiogroup" aria-label="Device">
-              {(Object.keys(DEVICES) as Device[]).map((d) => {
-                const { label, width, icon: Icon } = DEVICES[d];
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    role="radio"
-                    aria-checked={device === d}
-                    onClick={() => setDevice(d)}
-                    title={`${label} · ${width}px`}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition",
-                      device === d && "bg-background text-foreground shadow-sm",
-                    )}
-                  >
-                    <Icon className="size-3.5" />
-                    <span className="hidden sm:inline">{label}</span>
-                    <span className="hidden font-mono text-[10px] opacity-60 xl:inline">{width}</span>
-                  </button>
-                );
-              })}
+          {fullscreen && (
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-2 rounded-xl border bg-background/95 p-1 shadow-xl backdrop-blur">
+              <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5" role="radiogroup" aria-label="Device">
+                <DeviceButtons device={device} onChange={setDevice} />
+              </div>
+              <Button size="sm" variant="secondary" onClick={() => setFullscreen(false)}>
+                <Minimize2 /> Exit <kbd className="ml-1 hidden rounded border px-1 font-mono text-[10px] sm:inline">Esc</kbd>
+              </Button>
             </div>
-            <Button
-              variant={fullscreen ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setFullscreen((f) => !f)}
-              aria-label={fullscreen ? "Exit full screen" : "Full screen preview"}
-            >
-              {fullscreen ? <Minimize2 /> : <Maximize2 />}
-              <span className="hidden sm:inline">{fullscreen ? "Exit full screen" : "Full screen"}</span>
-            </Button>
-          </div>
-          <ScaledFrame width={DEVICES[device].width} device={device}>
+          )}
+          {!fullscreen && (
+            <div className="flex shrink-0 items-center justify-center gap-2 border-b bg-background/80 px-3 py-1.5 lg:hidden">
+              <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5" role="radiogroup" aria-label="Device">
+                <DeviceButtons device={device} onChange={setDevice} />
+              </div>
+              <Button variant="ghost" size="icon-sm" onClick={() => setFullscreen(true)} aria-label="Full screen preview">
+                <Maximize2 />
+              </Button>
+            </div>
+          )}
+          <DeviceFrame device={device} edgeToEdge={fullscreen && device === "desktop"} blockPointer={resizing}>
             <iframe ref={iframeRef} src={PREVIEW_URL} title="Homepage preview" className="block size-full border-0 bg-background" />
-          </ScaledFrame>
+          </DeviceFrame>
         </section>
       </div>
 
@@ -423,6 +539,34 @@ export function HomeBuilder({ initial, categories }: { initial: HomeSection[]; c
   );
 }
 
+function DeviceButtons({ device, onChange }: { device: Device; onChange: (d: Device) => void }) {
+  return (
+    <>
+      {(Object.keys(DEVICES) as Device[]).map((d) => {
+        const { label, width, icon: Icon } = DEVICES[d];
+        return (
+          <button
+            key={d}
+            type="button"
+            role="radio"
+            aria-checked={device === d}
+            onClick={() => onChange(d)}
+            title={`${label} · ${width}px`}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition",
+              device === d ? "bg-background text-foreground shadow-sm" : "hover:text-foreground",
+            )}
+          >
+            <Icon className="size-3.5" />
+            <span className="hidden sm:inline">{label}</span>
+            <span className="hidden font-mono text-[10px] opacity-60 xl:inline">{width}</span>
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
 function SectionIcon({ type }: { type: HomeSectionType }) {
   const Icon = SECTION_META[type].icon;
   return (
@@ -433,10 +577,22 @@ function SectionIcon({ type }: { type: HomeSectionType }) {
 }
 
 /**
- * Renders the iframe at the device's real width (so storefront breakpoints apply) and scales it
- * down to fit the panel; the frame stays tall enough to fill the panel after scaling.
+ * Shows the iframe at the device's real viewport width (so storefront breakpoints apply), scaled
+ * to fit the canvas. Tablet and phone get a fixed screen height and a device bezel; desktop fills
+ * the canvas height. `edgeToEdge` = unscaled, full-bleed desktop (full screen mode). The element
+ * tree never changes shape, so the iframe isn't reloaded when switching devices or modes.
  */
-function ScaledFrame({ width, device, children }: { width: number; device: Device; children: React.ReactNode }) {
+function DeviceFrame({
+  device,
+  edgeToEdge,
+  blockPointer,
+  children,
+}: {
+  device: Device;
+  edgeToEdge: boolean;
+  blockPointer: boolean;
+  children: React.ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   useEffect(() => {
@@ -446,28 +602,54 @@ function ScaledFrame({ width, device, children }: { width: number; device: Devic
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const GUTTER = 16;
-  const scale = box.w ? Math.min(1, (box.w - GUTTER * 2) / width) : 1;
+
+  const spec = DEVICES[device];
+  const gutter = edgeToEdge ? 0 : 24;
+  const availW = Math.max(1, box.w - gutter * 2);
+  const availH = Math.max(1, box.h - gutter * 2);
+  const bezel = edgeToEdge ? 0 : spec.bezel;
+  const screenW = edgeToEdge ? box.w : spec.width;
+  const outerW = screenW + bezel * 2;
+  const scale = edgeToEdge ? 1 : spec.height ? Math.min(1, availW / outerW, availH / (spec.height + bezel * 2)) : Math.min(1, availW / outerW);
+  const screenH = edgeToEdge ? box.h : spec.height ?? availH / scale;
+  const label = `${spec.width}${spec.height ? ` × ${spec.height}` : ""} · ${Math.round(scale * 100)}%`;
+
   return (
-    <div ref={ref} className="relative min-h-0 flex-1 overflow-hidden">
-      {box.w > 0 && (
-        // Centred from the middle, then scaled about its top centre (a frame wider than the panel
-        // can't be centred with auto margins).
+    <div ref={ref} className="relative min-h-0 flex-1 overflow-hidden" style={{ visibility: box.w ? "visible" : "hidden" }}>
+      <div
+        className={cn(
+          "absolute left-1/2 transition-[width,height] duration-300",
+          device === "desktop" && !edgeToEdge && "overflow-hidden rounded-md shadow-xl ring-1 ring-black/10",
+          device === "tablet" && !edgeToEdge && "rounded-[2rem] bg-neutral-900 shadow-2xl ring-1 ring-black/40",
+          device === "mobile" && !edgeToEdge && "rounded-[2.75rem] bg-neutral-900 shadow-2xl ring-1 ring-black/40",
+        )}
+        style={{
+          top: gutter,
+          width: outerW,
+          height: screenH + bezel * 2,
+          padding: bezel,
+          transform: `translateX(-50%) scale(${scale})`,
+          transformOrigin: "top center",
+        }}
+      >
+        {device === "mobile" && !edgeToEdge && (
+          <span aria-hidden className="absolute top-[5px] left-1/2 z-10 h-[3px] w-16 -translate-x-1/2 rounded-full bg-neutral-700" />
+        )}
         <div
           className={cn(
-            "absolute left-1/2 overflow-hidden bg-background shadow-xl ring-1 ring-black/10",
-            device !== "desktop" && "rounded-[1.75rem] ring-[6px] ring-neutral-800",
+            "size-full overflow-hidden bg-background",
+            device === "tablet" && !edgeToEdge && "rounded-[1.25rem]",
+            device === "mobile" && !edgeToEdge && "rounded-[2rem]",
+            blockPointer && "pointer-events-none",
           )}
-          style={{
-            top: GUTTER,
-            width,
-            height: (box.h - GUTTER * 2) / scale,
-            transform: `translateX(-50%) scale(${scale})`,
-            transformOrigin: "top center",
-          }}
         >
           {children}
         </div>
+      </div>
+      {!edgeToEdge && (
+        <span className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-background/90 px-2.5 py-0.5 font-mono text-[10px] text-muted-foreground shadow-sm">
+          {label}
+        </span>
       )}
     </div>
   );
