@@ -69,6 +69,106 @@ const defaultMenu = [
   ["Fragrance", "/categories/fragrance"],
 ].map(([title, url]) => menuItem.parse({ title, url }));
 
+// --- Hero slider ---------------------------------------------------------------
+
+const optionalUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((v) => v === "" || /^(https?:\/\/|\/)\S+$/.test(v), "Use a /path or a full https:// URL")
+  .default("");
+
+const heroSlide = z.object({
+  id: z.string().min(1).max(40).default(() => Math.random().toString(36).slice(2, 10)),
+  active: z.boolean().default(true),
+  background: z
+    .object({
+      type: z.enum(["solid", "gradient", "image", "video"]).default("gradient"),
+      color: hexColor.default("#1f3b33"),
+      color2: hexColor.default("#0b1a16"),
+      direction: z.enum(["radial", "to bottom", "to right", "to bottom right", "to top right"]).default("radial"),
+      imageUrl: optionalUrl,
+      videoUrl: optionalUrl,
+      // Darkening layer over image/video backgrounds, 0–90 %.
+      overlay: z.number().int().min(0).max(90).default(40),
+      pattern: z.boolean().default(true),
+    })
+    .prefault({}),
+  // Text colour scheme and accent (badge, arch outline, illustration ink).
+  text: z.enum(["light", "dark"]).default("light"),
+  accent: hexColor.default("#d8c08a"),
+  eyebrow: z.string().trim().max(80).default(""),
+  title: z.string().trim().min(1, "Add a headline").max(120),
+  titleBn: z.string().trim().max(160).default(""),
+  body: z.string().trim().max(400).default(""),
+  primary: z.object({ label: z.string().trim().min(1, "Add a button label").max(40), url: menuUrl }),
+  secondary: z
+    .object({
+      enabled: z.boolean().default(true),
+      label: z.string().trim().max(40).default(""),
+      url: z.union([z.literal(""), menuUrl]).default(""),
+    })
+    .prefault({}),
+  visual: z
+    .object({
+      type: z.enum(["illustration", "image", "none"]).default("illustration"),
+      art: z.enum(["panjabi", "abaya", "thobe", "casual", "fragrance"]).default("panjabi"),
+      imageUrl: optionalUrl,
+      fit: z.enum(["cover", "contain"]).default("cover"),
+    })
+    .prefault({}),
+});
+
+export type HeroSlideSetting = z.infer<typeof heroSlide>;
+
+export const newHeroSlide = (): HeroSlideSetting =>
+  heroSlide.parse({ title: "New slide headline", primary: { label: "Shop now", url: "/products" }, secondary: { enabled: false } });
+
+/** The original storefront slides — used until an admin saves their own. */
+const defaultHeroSlides = (
+  [
+    {
+      id: "eid",
+      visual: { art: "panjabi" },
+      eyebrow: "The Eid Edit · 2026",
+      title: "Quiet luxury for sacred moments.",
+      titleBn: "পবিত্র মুহূর্তের জন্য নিঃশব্দ আভিজাত্য",
+      body: "Raw silk panjabis and hand-embroidered cottons, finished in Dhaka by master tailors.",
+      primary: { label: "Shop Panjabi", url: "/categories/panjabi" },
+      secondary: { label: "Explore the Edit", url: "/products" },
+      background: { color: "#1f3b33", color2: "#0b1a16" },
+      accent: "#d8c08a",
+      text: "light",
+    },
+    {
+      id: "abaya",
+      visual: { art: "abaya" },
+      eyebrow: "New Season · Abaya",
+      title: "Drape that moves with grace.",
+      titleBn: "শালীনতায় সৌন্দর্য",
+      body: "Dubai Nida and Korean crepe abayas — fluid, breathable, made to be lived in.",
+      primary: { label: "Shop Abaya", url: "/categories/abaya" },
+      secondary: { label: "New Arrivals", url: "/products" },
+      background: { color: "#2b2420", color2: "#120f0d" },
+      accent: "#cbb38a",
+      text: "light",
+    },
+    {
+      id: "thobe",
+      visual: { art: "thobe" },
+      eyebrow: "Essentials · Thobe",
+      title: "The thobe, refined.",
+      titleBn: "জুব্বা — নতুন রূপে",
+      body: "Emirati and Moroccan cuts in wrinkle-resistant Japanese fabric. Free delivery over ৳3,000.",
+      primary: { label: "Shop Thobe", url: "/categories/thobe" },
+      secondary: { label: "Size Guide", url: "/products" },
+      background: { color: "#ece4d4", color2: "#d4c6ab" },
+      accent: "#7a6440",
+      text: "dark",
+    },
+  ] as const
+).map((s) => heroSlide.parse(s));
+
 export const defaultAnnouncements = [
   "সারা বাংলাদেশে ক্যাশ অন ডেলিভারি",
   "৭ দিনে সহজ এক্সচেঞ্জ সুবিধা",
@@ -110,6 +210,12 @@ export const settingSchemas = {
     mode: z.enum(["marquee", "static"]).default("marquee"),
     // Seconds for one full loop of the ticker — lower is faster.
     speed: z.number().int().min(5).max(120).default(40),
+  }),
+  hero_slides: z.object({
+    autoplay: z.boolean().default(true),
+    interval: z.number().min(2).max(30).default(6.5), // seconds per slide
+    pauseOnHover: z.boolean().default(true),
+    slides: z.array(heroSlide).max(10).default(defaultHeroSlides),
   }),
   header_menu: z.object({
     items: z.array(menuItem).max(12).default(defaultMenu),

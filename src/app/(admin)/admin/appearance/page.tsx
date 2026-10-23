@@ -14,7 +14,7 @@ export default function AdminAppearancePage() {
     <div className="space-y-6 p-6">
       <AdminPageHeader
         title="Appearance"
-        description="Logo, favicon, announcement bar and header menus. Changes go live on the storefront as soon as you save."
+        description="Logo, favicon, hero slider, announcement bar and header menus. Changes go live on the storefront as soon as you save."
       />
       <Suspense fallback={<Skeleton className="h-[600px] w-full rounded-xl" />}>
         <AppearanceContent />
@@ -25,10 +25,11 @@ export default function AdminAppearancePage() {
 
 async function AppearanceContent() {
   await requireAdmin();
-  const [branding, announcement, headerMenu, categories] = await Promise.all([
+  const [branding, announcement, headerMenu, hero, categories] = await Promise.all([
     getSetting("appearance.branding"),
     getSetting("appearance.announcement"),
     getSetting("header_menu"),
+    getSetting("hero_slides"),
     getCategories(),
   ]);
   return (
@@ -36,6 +37,7 @@ async function AppearanceContent() {
       branding={branding}
       announcement={announcement}
       headerMenu={headerMenu}
+      hero={hero}
       categories={categories.map(({ slug, name, nameBn }) => ({ slug, name, nameBn }))}
     />
   );

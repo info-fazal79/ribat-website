@@ -16,6 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Segmented, Switch } from "@/components/admin/appearance/controls";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Field, TextInput } from "@/components/admin/landing-builder/fields";
 import { DropdownContent, MegaMenuContent, hasSubmenu, megaColumns, megaThemes } from "@/components/storefront/header-nav";
@@ -607,75 +608,6 @@ function LinkRows({
         <Plus />
         Add link
       </Button>
-    </div>
-  );
-}
-
-function Switch({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className="flex items-start gap-3 text-left">
-      <span
-        className={cn(
-          "relative mt-0.5 inline-flex h-5 w-9 shrink-0 rounded-full transition-colors",
-          checked ? "bg-primary" : "bg-input",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 left-0.5 size-4 rounded-full bg-background shadow transition-transform",
-            checked && "translate-x-4",
-          )}
-        />
-      </span>
-      <span>
-        <span className="block text-sm font-medium">{label}</span>
-        {description && <span className="block text-xs text-muted-foreground">{description}</span>}
-      </span>
-    </button>
-  );
-}
-
-function Segmented<T extends string | number>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="radiogroup" aria-label={label}>
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            role="radio"
-            aria-checked={value === o.value}
-            onClick={() => onChange(o.value)}
-            className={cn(
-              "rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition-colors",
-              value === o.value && "bg-background text-foreground shadow-sm",
-            )}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

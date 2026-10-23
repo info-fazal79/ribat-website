@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ImageIcon, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { saveAppearance } from "@/app/(admin)/admin/appearance/actions";
+import { ColorInput } from "@/components/admin/appearance/controls";
+import { HeroEditor } from "@/components/admin/appearance/hero-editor";
 import { MenuEditor, type QuickAddCategory } from "@/components/admin/appearance/menu-editor";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Field, ListEditor, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
@@ -19,7 +21,8 @@ import type { SettingValue } from "@/lib/validations/settings";
 type Branding = SettingValue<"appearance.branding">;
 type Announcement = SettingValue<"appearance.announcement">;
 type HeaderMenu = SettingValue<"header_menu">;
-type Draft = { branding: Branding; announcement: Announcement; headerMenu: HeaderMenu };
+type Hero = SettingValue<"hero_slides">;
+type Draft = { branding: Branding; announcement: Announcement; headerMenu: HeaderMenu; hero: Hero };
 
 const DEFAULT_COLORS = { backgroundColor: "#123e31", textColor: "#d4af37" };
 
@@ -74,6 +77,7 @@ export function AppearanceCustomizer({ categories, ...initial }: Draft & { categ
       <Tabs defaultValue="branding" className="min-w-0">
         <TabsList className="h-auto! w-full max-w-full sm:w-fit max-sm:[&>*]:min-w-0 max-sm:[&>*]:whitespace-normal">
           <TabsTrigger value="branding">Branding & Logo</TabsTrigger>
+          <TabsTrigger value="hero">Hero Slider</TabsTrigger>
           <TabsTrigger value="announcement">Top Announcement Bar</TabsTrigger>
           <TabsTrigger value="menus">Navigation & Menus</TabsTrigger>
         </TabsList>
@@ -244,6 +248,10 @@ export function AppearanceCustomizer({ categories, ...initial }: Draft & { categ
           </div>
         </TabsContent>
 
+        <TabsContent value="hero" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
+          <HeroEditor value={draft.hero} errors={errors} onChange={(hero) => setDraft((d) => ({ ...d, hero }))} />
+        </TabsContent>
+
         <TabsContent value="menus" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
           <MenuEditor
             items={draft.headerMenu.items}
@@ -286,33 +294,6 @@ function NumberInput({
   return (
     <Field label={label} error={error}>
       <Input type="number" min={min} max={max} value={value} aria-invalid={!!error} onChange={(e) => onChange(Number(e.target.value))} />
-    </Field>
-  );
-}
-
-function ColorInput({
-  label,
-  value,
-  onChange,
-  error,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  error?: string;
-}) {
-  return (
-    <Field label={label} error={error}>
-      <div className="flex gap-2">
-        <input
-          type="color"
-          value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#000000"}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-8 w-12 shrink-0 cursor-pointer rounded-md border bg-transparent p-0.5"
-          aria-label={`${label} picker`}
-        />
-        <Input value={value} aria-invalid={!!error} onChange={(e) => onChange(e.target.value.trim())} className="font-mono uppercase" />
-      </div>
     </Field>
   );
 }
