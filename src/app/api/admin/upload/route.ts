@@ -14,7 +14,7 @@ const allowed: Record<string, string[]> = {
   ico: ["image/x-icon", "image/vnd.microsoft.icon", ""],
 };
 
-const folders = new Set(["logo", "favicon"]);
+const folders = new Set(["logo", "favicon", "promo"]);
 
 // Without Supabase Storage keys, images are embedded in the Setting row as a data URL.
 // Base64 adds ~35%, and logo + favicon are saved in one request (Vercel caps bodies at 4.5 MB).

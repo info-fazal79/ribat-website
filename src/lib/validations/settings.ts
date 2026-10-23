@@ -32,14 +32,19 @@ const menuLink = z.object({
 });
 
 const menuItem = z.object({
+  // Stable key for the admin builder (reorder / expand state); generated for older rows.
+  id: z.string().min(1).max(40).default(() => Math.random().toString(36).slice(2, 10)),
   title: z.string().trim().min(1, "Add a title").max(40),
   url: menuUrl,
   // Plain dropdown when megaMenu is off; ignored when it's on.
   links: z.array(menuLink).max(20).default([]),
   megaMenu: z.boolean().default(false),
+  // Number of link columns in the mega panel (the promo card sits beside them).
+  gridColumns: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(3),
+  panelTheme: z.enum(["light", "cream", "emerald"]).default("light"),
   columns: z
     .array(z.object({ title: z.string().trim().max(60).default(""), links: z.array(menuLink).max(12).default([]) }))
-    .max(5)
+    .max(4)
     .default([]),
   promo: z
     .object({

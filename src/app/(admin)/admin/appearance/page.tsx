@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { AppearanceCustomizer } from "@/components/admin/appearance/appearance-customizer";
 import { requireAdmin } from "@/server/auth/guards";
+import { getCategories } from "@/server/services/catalog";
 import { getSetting } from "@/server/services/settings";
 
 export const metadata: Metadata = { title: "Appearance" };
@@ -24,10 +25,18 @@ export default function AdminAppearancePage() {
 
 async function AppearanceContent() {
   await requireAdmin();
-  const [branding, announcement, headerMenu] = await Promise.all([
+  const [branding, announcement, headerMenu, categories] = await Promise.all([
     getSetting("appearance.branding"),
     getSetting("appearance.announcement"),
     getSetting("header_menu"),
+    getCategories(),
   ]);
-  return <AppearanceCustomizer branding={branding} announcement={announcement} headerMenu={headerMenu} />;
+  return (
+    <AppearanceCustomizer
+      branding={branding}
+      announcement={announcement}
+      headerMenu={headerMenu}
+      categories={categories.map(({ slug, name, nameBn }) => ({ slug, name, nameBn }))}
+    />
+  );
 }

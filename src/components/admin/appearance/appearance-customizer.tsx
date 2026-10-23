@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ImageIcon, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { saveAppearance } from "@/app/(admin)/admin/appearance/actions";
-import { MenuEditor } from "@/components/admin/appearance/menu-editor";
+import { MenuEditor, type QuickAddCategory } from "@/components/admin/appearance/menu-editor";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Field, ListEditor, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
@@ -23,7 +23,7 @@ type Draft = { branding: Branding; announcement: Announcement; headerMenu: Heade
 
 const DEFAULT_COLORS = { backgroundColor: "#123e31", textColor: "#d4af37" };
 
-export function AppearanceCustomizer(initial: Draft) {
+export function AppearanceCustomizer({ categories, ...initial }: Draft & { categories: QuickAddCategory[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
@@ -244,14 +244,11 @@ export function AppearanceCustomizer(initial: Draft) {
           </div>
         </TabsContent>
 
-        <TabsContent value="menus" className="min-w-0 space-y-4 rounded-xl border bg-card p-6">
-          <p className="text-sm text-muted-foreground">
-            Header menu items, in order. Add dropdown links to any item, or switch on Mega menu for a full-width panel with
-            columns and a promo card.
-          </p>
+        <TabsContent value="menus" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
           <MenuEditor
             items={draft.headerMenu.items}
             errors={errors}
+            categories={categories}
             onChange={(items) => setDraft((d) => ({ ...d, headerMenu: { items } }))}
           />
         </TabsContent>
