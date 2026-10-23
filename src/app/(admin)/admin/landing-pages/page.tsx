@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminPageHeader } from "@/components/admin/page-header";
 import { LandingPagesManager } from "@/components/admin/landing-pages/landing-pages-manager";
 import { requireStaff } from "@/server/auth/guards";
-import { listLandingPages } from "@/server/services/admin";
+import { listLandingPages, listLandingProductOptions } from "@/server/services/admin";
 
 export const metadata: Metadata = { title: "Landing Pages" };
 
@@ -24,6 +24,6 @@ export default function AdminLandingPagesPage() {
 
 async function LandingPagesContent() {
   await requireStaff();
-  const pages = await listLandingPages();
-  return <LandingPagesManager pages={pages} />;
+  const [pages, products] = await Promise.all([listLandingPages(), listLandingProductOptions()]);
+  return <LandingPagesManager pages={pages} products={products} />;
 }

@@ -9,7 +9,12 @@ export const LANDING_SCHEMA_VERSION = 1;
 
 // Bengali copy is common on landing pages; text fields accept any Unicode.
 const text = z.string().max(2000);
-const imageUrl = z.url();
+// Full URL or a site path — Media Library uploads are served from /media/….
+const imageUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .regex(/^(https?:\/\/|\/)\S+$/, "Use an image from the Media Library or a full https:// URL");
 
 const base = {
   id: z.string().min(1),
@@ -70,6 +75,8 @@ export const galleryBlock = z.object({
     /** Empty → product placeholder art. */
     images: z.array(z.object({ url: imageUrl, alt: z.string().optional() })).max(20),
     videoUrl: z.url().optional(),
+    /** "slider": large image with clickable thumbnails; "grid": mosaic. */
+    layout: z.enum(["grid", "slider"]).default("grid"),
     highlights: z.array(z.object({ title: text, body: text.optional() })).max(8).default([]),
   }),
 });
@@ -81,6 +88,7 @@ export const reviewsBlock = z.object({
     title: text.optional(),
     // Pull approved product reviews, or show curated testimonials / screenshots.
     source: z.enum(["product", "screenshots"]).default("product"),
+    layout: z.enum(["grid", "carousel"]).default("grid"),
     screenshotUrls: z.array(imageUrl).default([]),
     items: z
       .array(
@@ -128,6 +136,38 @@ export const checkoutBlock = z.object({
   }),
 });
 
+/** Offer bundles as tappable package cards; choosing one preselects it in the checkout. */
+export const offersBlock = z.object({
+  ...base,
+  type: z.literal("offers"),
+  props: z.object({
+    title: text.optional(),
+    subtitle: text.optional(),
+    ctaLabel: z.string().max(60).default("এই প্যাকেজটি নিন"),
+  }),
+});
+
+export const comparisonBlock = z.object({
+  ...base,
+  type: z.literal("comparison"),
+  props: z.object({
+    title: text.optional(),
+    oursLabel: z.string().max(40).default("রিবাত"),
+    othersLabel: z.string().max(40).default("সাধারণ বাজার"),
+    rows: z.array(z.object({ feature: text, ours: z.boolean().default(true), others: z.boolean().default(false) })).max(15),
+  }),
+});
+
+/** Mobile bottom bar with price + buy button. Without this block, pages with a checkout get a default bar. */
+export const stickyBarBlock = z.object({
+  ...base,
+  type: z.literal("stickyBar"),
+  props: z.object({
+    buttonLabel: z.string().max(60).default("অর্ডার করতে চাই"),
+    showPrice: z.boolean().default(true),
+  }),
+});
+
 export const landingSection = z.discriminatedUnion("type", [
   heroBlock,
   benefitsBlock,
@@ -137,6 +177,9 @@ export const landingSection = z.discriminatedUnion("type", [
   countdownBlock,
   richTextBlock,
   checkoutBlock,
+  offersBlock,
+  comparisonBlock,
+  stickyBarBlock,
 ]);
 
 export const landingSections = z.array(landingSection);

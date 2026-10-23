@@ -208,10 +208,28 @@ export async function listLandingProductOptions() {
   const rows = await db.product.findMany({
     where: { status: "ACTIVE" },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, minPrice: true },
+    select: {
+      id: true,
+      name: true,
+      nameBn: true,
+      type: true,
+      minPrice: true,
+      images: { orderBy: { position: "asc" }, take: 1, select: { url: true } },
+      _count: { select: { variants: { where: { isActive: true } } } },
+    },
   });
-  return rows.map((p) => ({ id: p.id, name: p.name, price: toNumber(p.minPrice) }));
+  return rows.map((p) => ({
+    id: p.id,
+    name: p.name,
+    nameBn: p.nameBn,
+    type: p.type,
+    price: toNumber(p.minPrice),
+    image: p.images[0]?.url ?? null,
+    variantCount: p._count.variants,
+  }));
 }
+
+export type LandingProductOption = Awaited<ReturnType<typeof listLandingProductOptions>>[number];
 
 export async function getDashboardStats() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

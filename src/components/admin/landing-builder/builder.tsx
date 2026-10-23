@@ -13,28 +13,34 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  Layers,
   Loader2,
   Monitor,
+  Package,
+  PanelLeft,
   Plus,
+  Settings2,
   Smartphone,
   Trash2,
   Wand2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { saveLandingPage } from "@/app/(admin)/admin/landing-pages/actions";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BlockEditor } from "@/components/admin/landing-builder/block-editors";
+import {
+  AddBlockDrawer,
+  blockIcons,
+  blockSummary,
+  CanvasBlock,
+  InsertSlot,
+  type DragState,
+} from "@/components/admin/landing-builder/canvas";
 import { Field, TextArea, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import { LandingView } from "@/components/landing/section-renderer";
 import type { LandingPageView } from "@/lib/landing/types";
@@ -102,14 +108,20 @@ export function LandingBuilder({
   const initial = useMemo<Draft>(() => ({ ...page, offers: page.offers.map(toOfferDraft) }), [page]);
   const [draft, setDraft] = useState<Draft>(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
-  const [openId, setOpenId] = useState<string | null>(page.sections[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [panel, setPanel] = useState<"layers" | "offers" | "settings">("layers");
+  const [panelOpen, setPanelOpen] = useState(false); // below lg the left panel is an overlay
+  const [insertAt, setInsertAt] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
 
   const dirty = JSON.stringify(draft) !== saved;
   const product = products.find((p) => p.id === draft.productId) ?? null;
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
+  const sections = draft.sections;
+  const selectedIndex = sections.findIndex((s) => s.id === selectedId);
+  const selected = selectedIndex >= 0 ? sections[selectedIndex] : null;
 
   // Warn before leaving with unsaved changes.
   useEffect(() => {
@@ -119,12 +131,14 @@ export function LandingBuilder({
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  // Ctrl/Cmd+S saves.
+  // Ctrl/Cmd+S saves; Escape closes the inspector.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         document.getElementById("builder-save")?.click();
+      } else if (e.key === "Escape" && !document.querySelector("[role=dialog]")) {
+        setSelectedId(null);
       }
     };
     window.addEventListener("keydown", handler);
@@ -158,34 +172,102 @@ export function LandingBuilder({
         router.refresh();
       } else {
         setErrors(result.fieldErrors);
-        // Open the first section with an error.
-        const m = Object.keys(result.fieldErrors)[0]?.match(/^sections\.(\d+)\./);
-        if (m) setOpenId(draft.sections[Number(m[1])]?.id ?? null);
+        // Open the first block with an error, or the panel that holds the failing field.
+        const key = Object.keys(result.fieldErrors)[0] ?? "";
+        const m = key.match(/^sections\.(\d+)\./);
+        if (m) select(draft.sections[Number(m[1])]?.id ?? null, true);
+        else if (key.startsWith("offers")) openPanel("offers");
+        else if (key) openPanel("settings");
         toast.error(result.message);
       }
     });
   }
 
   // --- Sections ---------------------------------------------------------------
-  const updateSection = (id: string, next: LandingSection) =>
-    set("sections", draft.sections.map((s) => (s.id === id ? next : s)));
-  const moveSection = (from: number, to: number) => {
-    if (to < 0 || to >= draft.sections.length || from === to) return;
-    const next = [...draft.sections];
-    const [s] = next.splice(from, 1);
-    next.splice(to, 0, s);
-    set("sections", next);
-  };
-  const addSection = (type: LandingSectionType) => {
+  const setSections = (next: LandingSection[]) => set("sections", next);
+  const updateSection = (id: string, next: LandingSection) => setSections(sections.map((s) => (s.id === id ? next : s)));
+  const isTaken = (type: LandingSectionType) => !!blockCatalog[type].single && sections.some((s) => s.type === type);
+
+  function select(id: string | null, scroll = false) {
+    setSelectedId(id);
+    if (id && scroll) {
+      // Wait for the inspector to open so the canvas has its final width.
+      requestAnimationFrame(() =>
+        document.getElementById(`canvas-block-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      );
+    }
+  }
+  function openPanel(next: typeof panel) {
+    setPanel(next);
+    setPanelOpen(true);
+  }
+  function insertBlock(type: LandingSectionType, at: number) {
     const block = newBlock(type, `${type}-${uid()}`, product?.nameBn ?? product?.name);
-    // New blocks go just above checkout (checkout normally stays last).
-    const checkoutIndex = draft.sections.findIndex((s) => s.type === "checkout");
-    const next = [...draft.sections];
-    next.splice(type !== "checkout" && checkoutIndex >= 0 ? checkoutIndex : next.length, 0, block);
-    set("sections", next);
-    setOpenId(block.id);
+    const next = [...sections];
+    next.splice(at, 0, block);
+    setSections(next);
+    setInsertAt(null);
+    select(block.id, true);
+  }
+  function duplicate(id: string) {
+    const i = sections.findIndex((s) => s.id === id);
+    if (i < 0 || isTaken(sections[i].type)) return;
+    const copy = { ...structuredClone(sections[i]), id: `${sections[i].type}-${uid()}` };
+    const next = [...sections];
+    next.splice(i + 1, 0, copy);
+    setSections(next);
+    select(copy.id);
+  }
+  function remove(id: string) {
+    const section = sections.find((s) => s.id === id);
+    if (!section) return;
+    setSections(sections.filter((s) => s.id !== id));
+    if (selectedId === id) setSelectedId(null);
+    toast(`${blockCatalog[section.type].label} deleted`, {
+      action: { label: "Undo", onClick: () => setDraft((d) => ({ ...d, sections })) },
+    });
+  }
+  const toggleHidden = (s: LandingSection) => updateSection(s.id, { ...s, hidden: !s.hidden });
+
+  // Drag & drop reorder (canvas and layers share this). dropIndex is an insertion index.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const drag: DragState = {
+    dragId,
+    dropIndex,
+    start: (id, e) => {
+      setDragId(id);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", id);
+      const block = document.getElementById(`canvas-block-${id}`);
+      if (block && e.currentTarget.closest(`#canvas-block-${id}`)) e.dataTransfer.setDragImage(block, 24, 24);
+    },
+    over: (index, e) => {
+      if (!dragId) return;
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const next = e.clientY < rect.top + rect.height / 2 ? index : index + 1;
+      if (next !== dropIndex) setDropIndex(next);
+    },
+    drop: () => {
+      const from = sections.findIndex((s) => s.id === dragId);
+      if (from >= 0 && dropIndex !== null) {
+        const to = dropIndex > from ? dropIndex - 1 : dropIndex;
+        if (to !== from) {
+          const next = [...sections];
+          const [s] = next.splice(from, 1);
+          next.splice(to, 0, s);
+          setSections(next);
+        }
+      }
+      setDragId(null);
+      setDropIndex(null);
+    },
+    end: () => {
+      setDragId(null);
+      setDropIndex(null);
+    },
   };
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const sectionErrors = (i: number) => {
     const prefix = `sections.${i}.props.`;
@@ -195,9 +277,10 @@ export function LandingBuilder({
         .map(([k, v]) => [k.slice(prefix.length), v]),
     );
   };
+  const hasErrors = (i: number) => Object.keys(errors).some((k) => k.startsWith(`sections.${i}.`));
 
   // --- Preview ----------------------------------------------------------------
-  // Recomputed each render — cheap, and keeps the preview exactly in sync with the draft.
+  // Recomputed each render — cheap, and keeps the canvas exactly in sync with the draft.
   const previewPage: LandingPageView | null = (() => {
     if (!product) return null;
     const allowed = new Set(draft.allowedVariantIds);
@@ -225,8 +308,10 @@ export function LandingBuilder({
     };
   })();
 
+  const noCheckout = !sections.some((s) => s.type === "checkout" && !s.hidden);
+
   return (
-    <div className="flex h-[calc(100vh)] flex-col">
+    <div className="flex h-screen flex-col">
       {/* Top bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-background px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
@@ -239,6 +324,7 @@ export function LandingBuilder({
             <p className="truncate font-medium">{draft.title || "Untitled page"}</p>
             <p className="font-mono text-[11px] text-muted-foreground">
               /lp/{draft.slug} · {page.viewCount.toLocaleString("en-IN")} views · {page.conversionCount} orders
+              {page.viewCount > 0 && ` · ${((page.conversionCount / page.viewCount) * 100).toFixed(1)}% CVR`}
             </p>
           </div>
         </div>
@@ -268,185 +354,307 @@ export function LandingBuilder({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1">
-        {/* Editor panel */}
-        <div className="w-full shrink-0 overflow-y-auto border-r bg-background lg:w-[440px]">
-          <Tabs defaultValue="sections" className="gap-0">
-            <TabsList className="sticky top-0 z-10 w-full rounded-none border-b bg-background p-1">
-              <TabsTrigger value="sections">Sections ({draft.sections.length})</TabsTrigger>
-              <TabsTrigger value="offers">Offers ({draft.offers.length})</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
+      <div className="relative flex min-h-0 flex-1">
+        {/* Left panel: layers / offers / settings */}
+        {panelOpen && <div className="absolute inset-0 z-30 bg-black/20 lg:hidden" onClick={() => setPanelOpen(false)} />}
+        <aside
+          className={cn(
+            "absolute inset-y-0 left-0 z-40 w-[340px] max-w-[90vw] flex-col border-r bg-background shadow-xl lg:static lg:z-auto lg:flex lg:shadow-none",
+            panelOpen ? "flex" : "hidden",
+          )}
+        >
+          <Tabs value={panel} onValueChange={(v) => setPanel(v as typeof panel)} className="min-h-0 flex-1 gap-0">
+            <TabsList className="w-full shrink-0 rounded-none border-b bg-background p-1">
+              <TabsTrigger value="layers">
+                <Layers /> Layers
+              </TabsTrigger>
+              <TabsTrigger value="offers">
+                <Package /> Offers
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <Settings2 /> Settings
+              </TabsTrigger>
             </TabsList>
-
-            <TabsContent value="sections" className="space-y-2 p-3">
-              {!draft.sections.some((s) => s.type === "checkout" && !s.hidden) && (
-                <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">
-                  No visible Checkout section — customers can&apos;t order from this page.
-                </p>
-              )}
-              {draft.sections.map((section, i) => {
-                const open = openId === section.id;
-                const hasError = Object.keys(sectionErrors(i)).length > 0;
-                const summary =
-                  section.type === "hero"
-                    ? section.props.headline
-                    : "title" in section.props
-                      ? section.props.title
-                      : section.type === "richText"
-                        ? section.props.html.slice(0, 40)
-                        : undefined;
-                return (
-                  <div
-                    key={section.id}
-                    draggable
-                    onDragStart={() => setDragIndex(i)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
-                      if (dragIndex !== null) moveSection(dragIndex, i);
-                      setDragIndex(null);
-                    }}
-                    onDragEnd={() => setDragIndex(null)}
-                    className={cn(
-                      "rounded-lg border bg-card transition",
-                      open && "ring-1 ring-primary",
-                      hasError && "border-destructive",
-                      section.hidden && "opacity-60",
-                      dragIndex === i && "opacity-40",
-                    )}
-                  >
-                    <div className="flex items-center gap-1 p-2">
-                      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground" aria-hidden />
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <TabsContent value="layers" className="space-y-1.5 p-3">
+                {noCheckout && (
+                  <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">
+                    No visible Checkout block — customers can&apos;t order from this page.
+                  </p>
+                )}
+                {sections.map((section, i) => {
+                  const Icon = blockIcons[section.type];
+                  const summary = blockSummary(section);
+                  return (
+                    <div
+                      key={section.id}
+                      onDragOver={(e) => drag.over(i, e)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        drag.drop();
+                      }}
+                      className={cn(
+                        "relative flex items-center gap-1 rounded-lg border bg-card p-1.5 transition",
+                        selectedId === section.id && "border-primary ring-1 ring-primary",
+                        hasErrors(i) && "border-destructive",
+                        section.hidden && "opacity-55",
+                        dragId === section.id && "opacity-40",
+                      )}
+                    >
+                      {dropIndex === i && <span className="absolute inset-x-0 -top-1 h-0.5 rounded bg-primary" />}
+                      {dropIndex === i + 1 && i === sections.length - 1 && <span className="absolute inset-x-0 -bottom-1 h-0.5 rounded bg-primary" />}
+                      <span
+                        draggable
+                        onDragStart={(e) => drag.start(section.id, e)}
+                        onDragEnd={drag.end}
+                        className="grid size-7 shrink-0 cursor-grab place-items-center text-muted-foreground active:cursor-grabbing"
+                        aria-label="Drag to reorder"
+                      >
+                        <GripVertical className="size-4" />
+                      </span>
                       <button
                         type="button"
-                        onClick={() => setOpenId(open ? null : section.id)}
+                        onClick={() => {
+                          select(section.id, true);
+                          setPanelOpen(false);
+                        }}
                         className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                        aria-expanded={open}
                       >
-                        <span className="text-sm font-medium">{blockCatalog[section.type].label}</span>
-                        {summary && <span className="truncate font-bengali text-xs text-muted-foreground">{summary}</span>}
-                        <ChevronDown className={cn("ml-auto size-4 shrink-0 transition-transform", open && "rotate-180")} />
+                        <Icon className="size-4 shrink-0 text-primary" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">{blockCatalog[section.type].label}</span>
+                          {summary && <span className="block truncate font-bengali text-xs text-muted-foreground">{summary}</span>}
+                        </span>
                       </button>
-                      <Button variant="ghost" size="icon-xs" onClick={() => moveSection(i, i - 1)} disabled={i === 0} aria-label="Move up">
-                        <ArrowUp />
-                      </Button>
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        onClick={() => moveSection(i, i + 1)}
-                        disabled={i === draft.sections.length - 1}
-                        aria-label="Move down"
-                      >
-                        <ArrowDown />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => updateSection(section.id, { ...section, hidden: !section.hidden })}
-                        aria-label={section.hidden ? "Enable section" : "Disable section"}
-                        title={section.hidden ? "Disabled — click to enable" : "Enabled — click to disable"}
+                        onClick={() => toggleHidden(section)}
+                        aria-label={section.hidden ? "Show block" : "Hide block"}
+                        title={section.hidden ? "Hidden — click to show" : "Visible — click to hide"}
                       >
                         {section.hidden ? <EyeOff /> : <Eye />}
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon-xs" aria-label="More">
-                            <ChevronDown />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              const copy = { ...structuredClone(section), id: `${section.type}-${uid()}` };
-                              const next = [...draft.sections];
-                              next.splice(i + 1, 0, copy);
-                              set("sections", next);
-                            }}
-                          >
-                            <Copy /> Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => set("sections", draft.sections.filter((s) => s.id !== section.id))}
-                          >
-                            <Trash2 /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
-                    {open && (
-                      <div className="border-t p-3">
-                        <BlockEditor
-                          section={section}
-                          errors={sectionErrors(i)}
-                          onChange={(next) => updateSection(section.id, next)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full border-dashed">
-                    <Plus /> Add section
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-72">
-                  <DropdownMenuLabel>Blocks</DropdownMenuLabel>
-                  {(Object.keys(blockCatalog) as LandingSectionType[]).map((type) => (
-                    <DropdownMenuItem key={type} onSelect={() => addSection(type)} className="flex-col items-start gap-0">
-                      <span className="font-medium">{blockCatalog[type].label}</span>
-                      <span className="text-xs text-muted-foreground">{blockCatalog[type].description}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TabsContent>
+                  );
+                })}
+                <Button variant="outline" className="w-full border-dashed" onClick={() => setInsertAt(sections.length)}>
+                  <Plus /> Add block
+                </Button>
+              </TabsContent>
 
-            <TabsContent value="offers" className="p-3">
-              <OffersEditor
-                offers={draft.offers}
-                onChange={(offers) => set("offers", offers)}
-                errors={errors}
-                unitPrice={product?.price ?? 0}
-              />
-            </TabsContent>
+              <TabsContent value="offers" className="p-3">
+                <OffersEditor offers={draft.offers} onChange={(offers) => set("offers", offers)} errors={errors} unitPrice={product?.price ?? 0} />
+              </TabsContent>
 
-            <TabsContent value="settings" className="p-3">
-              <SettingsPanel draft={draft} set={set} products={products} zones={zones} errors={errors} />
-            </TabsContent>
+              <TabsContent value="settings" className="p-3">
+                <SettingsPanel draft={draft} set={set} products={products} zones={zones} errors={errors} />
+              </TabsContent>
+            </div>
           </Tabs>
-        </div>
+        </aside>
 
-        {/* Live preview */}
-        <div className="hidden min-w-0 flex-1 flex-col bg-muted/60 lg:flex">
-          <div className="flex items-center justify-center gap-1 border-b bg-background/60 py-2">
-            <Button variant={device === "mobile" ? "secondary" : "ghost"} size="sm" onClick={() => setDevice("mobile")}>
-              <Smartphone /> Mobile
+        {/* Canvas */}
+        <main className="relative flex min-w-0 flex-1 flex-col bg-muted/60">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-background/80 px-3 py-2 backdrop-blur">
+            <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setPanelOpen(true)}>
+              <PanelLeft /> Panels
             </Button>
-            <Button variant={device === "desktop" ? "secondary" : "ghost"} size="sm" onClick={() => setDevice("desktop")}>
-              <Monitor /> Desktop
+            <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5 lg:mx-auto" role="radiogroup" aria-label="Device preview">
+              {(
+                [
+                  ["desktop", Monitor, "Desktop"],
+                  ["mobile", Smartphone, "Mobile · 375px"],
+                ] as const
+              ).map(([value, Icon, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={device === value}
+                  onClick={() => setDevice(value)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium text-muted-foreground transition",
+                    device === value && "bg-background text-foreground shadow-sm",
+                  )}
+                >
+                  <Icon className="size-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+            <Button size="sm" onClick={() => setInsertAt(selectedIndex >= 0 ? selectedIndex + 1 : sections.length)}>
+              <Plus /> Add block
             </Button>
-            <span className="ml-3 text-xs text-muted-foreground">Live preview · ordering disabled</span>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+
+          <div
+            className={cn("min-h-0 flex-1 overflow-y-auto px-4 py-6 transition-[padding] sm:px-6", selected && "xl:pr-[404px]")}
+            onClick={(e) => e.target === e.currentTarget && setSelectedId(null)}
+          >
             <div
               className={cn(
-                "mx-auto overflow-hidden rounded-2xl bg-background shadow-xl ring-1 ring-black/5 transition-all",
-                device === "mobile" ? "max-w-[400px]" : "max-w-5xl",
+                "mx-auto bg-background transition-[max-width] duration-300",
+                device === "mobile"
+                  ? "max-w-[391px] overflow-hidden rounded-[2.25rem] border-8 border-neutral-900 shadow-2xl"
+                  : "max-w-[1280px] rounded-xl shadow-xl ring-1 ring-black/5",
               )}
-              // Container queries aren't used by the blocks, so constrain width and let them reflow.
             >
-              {previewPage ? (
-                <LandingView page={previewPage} preview />
-              ) : (
+              {!previewPage ? (
                 <p className="p-10 text-center text-sm text-muted-foreground">Choose a product in Settings to preview.</p>
+              ) : sections.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 p-16 text-center">
+                  <p className="text-sm text-muted-foreground">This page is empty.</p>
+                  <Button onClick={() => setInsertAt(0)}>
+                    <Plus /> Add your first block
+                  </Button>
+                </div>
+              ) : (
+                <LandingView
+                  page={previewPage}
+                  preview
+                  renderSection={(section, i, node) => (
+                    <>
+                      {i > 0 && <InsertSlot onClick={() => setInsertAt(i)} />}
+                      <CanvasBlock
+                        section={section}
+                        index={i}
+                        last={i === sections.length - 1}
+                        selected={section.id === selectedId}
+                        hasError={hasErrors(i)}
+                        drag={drag}
+                        canDuplicate={!blockCatalog[section.type].single}
+                        onSelect={() => select(section.id)}
+                        onDuplicate={() => duplicate(section.id)}
+                        onToggleHidden={() => toggleHidden(section)}
+                        onDelete={() => remove(section.id)}
+                      >
+                        {node}
+                      </CanvasBlock>
+                    </>
+                  )}
+                />
               )}
             </div>
+            {previewPage && sections.length > 0 && (
+              <div className="mx-auto mt-4 flex max-w-[1280px] justify-center">
+                <Button variant="outline" className="border-dashed bg-background" onClick={() => setInsertAt(sections.length)}>
+                  <Plus /> Add block at the end
+                </Button>
+              </div>
+            )}
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Live preview · ordering disabled · click a block to edit, drag <GripVertical className="inline size-3" /> to reorder
+            </p>
           </div>
-        </div>
+
+          {/* Slide-over inspector */}
+          <div
+            className={cn(
+              "absolute inset-y-0 right-0 z-30 flex w-full flex-col border-l bg-background shadow-2xl transition-transform duration-300 sm:w-[400px]",
+              selected ? "translate-x-0" : "pointer-events-none translate-x-full",
+            )}
+            aria-hidden={!selected}
+            inert={!selected}
+          >
+            {selected && (
+              <Inspector
+                key={selected.id}
+                section={selected}
+                errors={sectionErrors(selectedIndex)}
+                onChange={(next) => updateSection(selected.id, next)}
+                onClose={() => setSelectedId(null)}
+                onDuplicate={blockCatalog[selected.type].single ? undefined : () => duplicate(selected.id)}
+                onToggleHidden={() => toggleHidden(selected)}
+                onDelete={() => remove(selected.id)}
+                offers={
+                  ["hero", "offers", "checkout", "stickyBar"].includes(selected.type) ? (
+                    <OffersEditor offers={draft.offers} onChange={(offers) => set("offers", offers)} errors={errors} unitPrice={product?.price ?? 0} />
+                  ) : null
+                }
+              />
+            )}
+          </div>
+        </main>
       </div>
+
+      <AddBlockDrawer
+        open={insertAt !== null}
+        onOpenChange={(o) => !o && setInsertAt(null)}
+        position={insertAt ?? sections.length}
+        total={sections.length}
+        existing={sections.map((s) => s.type)}
+        onAdd={(type) => insertBlock(type, insertAt ?? sections.length)}
+      />
     </div>
+  );
+}
+
+function Inspector({
+  section,
+  errors,
+  onChange,
+  onClose,
+  onDuplicate,
+  onToggleHidden,
+  onDelete,
+  offers,
+}: {
+  section: LandingSection;
+  errors: Record<string, string>;
+  onChange: (next: LandingSection) => void;
+  onClose: () => void;
+  onDuplicate?: () => void;
+  onToggleHidden: () => void;
+  onDelete: () => void;
+  /** Offer pricing editor for blocks that display offers. */
+  offers: React.ReactNode;
+}) {
+  const Icon = blockIcons[section.type];
+  const [offersOpen, setOffersOpen] = useState(section.type === "offers");
+  return (
+    <>
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{blockCatalog[section.type].label}</p>
+          <p className="truncate text-xs text-muted-foreground">{section.hidden ? "Hidden from the live page" : blockCatalog[section.type].description}</p>
+        </div>
+        <Button variant="ghost" size="icon-sm" onClick={onClose} aria-label="Close settings">
+          <X />
+        </Button>
+      </div>
+      <div className="flex gap-1 border-b px-4 py-2">
+        <Button variant="ghost" size="sm" onClick={onToggleHidden}>
+          {section.hidden ? <Eye /> : <EyeOff />} {section.hidden ? "Show" : "Hide"}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onDuplicate} disabled={!onDuplicate}>
+          <Copy /> Duplicate
+        </Button>
+        <Button variant="ghost" size="sm" className="ml-auto text-destructive hover:text-destructive" onClick={onDelete}>
+          <Trash2 /> Delete
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <BlockEditor section={section} errors={errors} onChange={onChange} />
+        {offers && (
+          <div className="rounded-lg border">
+            <button
+              type="button"
+              onClick={() => setOffersOpen((o) => !o)}
+              aria-expanded={offersOpen}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium"
+            >
+              <Package className="size-4 text-primary" /> Offer packages & pricing
+              <ChevronDown className={cn("ml-auto size-4 transition-transform", offersOpen && "rotate-180")} />
+            </button>
+            {offersOpen && <div className="border-t p-3">{offers}</div>}
+          </div>
+        )}
+      </div>
+      <p className="border-t px-4 py-2 text-[11px] text-muted-foreground">Changes preview instantly · Ctrl+S to save</p>
+    </>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { Archive, ArchiveRestore, ExternalLink, MoreHorizontal, Pencil, Search, Star } from "lucide-react";
+import { Archive, ArchiveRestore, ExternalLink, MoreHorizontal, Pencil, Search, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { updateProductStatus } from "@/app/(admin)/admin/products/actions";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ProductArt } from "@/components/storefront/art";
 import { ProductStatusBadge, StatusPill } from "@/components/admin/status-badge";
+import { useGenerateLanding } from "@/components/admin/landing-pages/generate-from-product";
 import type { ProductStatus } from "@/generated/prisma/enums";
 import type { AdminProductRow } from "@/lib/admin/types";
 import { formatBDT } from "@/lib/money";
@@ -199,6 +200,7 @@ function StockCell({ stock, variants }: { stock: number; variants: number }) {
 
 function RowActions({ product }: { product: AdminProductRow }) {
   const [pending, startTransition] = useTransition();
+  const { generate, pendingId } = useGenerateLanding();
 
   const setStatus = (status: ProductStatus, message: string) =>
     startTransition(async () => {
@@ -213,7 +215,7 @@ function RowActions({ product }: { product: AdminProductRow }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" disabled={pending} aria-label={`Actions for ${product.name}`}>
+        <Button variant="ghost" size="icon-sm" disabled={pending || !!pendingId} aria-label={`Actions for ${product.name}`}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -228,6 +230,11 @@ function RowActions({ product }: { product: AdminProductRow }) {
             <Link href={`/products/${product.slug}`} target="_blank">
               <ExternalLink /> View on store
             </Link>
+          </DropdownMenuItem>
+        )}
+        {product.status !== "ARCHIVED" && (
+          <DropdownMenuItem onSelect={() => generate(product.id)}>
+            <Zap /> Generate landing page
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />

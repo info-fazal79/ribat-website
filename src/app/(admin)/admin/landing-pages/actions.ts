@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
+import { generateLandingSections, generateOffers } from "@/lib/landing/generate";
 import { buildTemplateSections, bundleOffers, landingTemplates, type LandingTemplate } from "@/lib/landing/templates";
 import { LANDING_SCHEMA_VERSION, landingPageSaveInput } from "@/lib/validations/landing-page";
 import { requireStaff } from "@/server/auth/guards";
@@ -62,6 +63,73 @@ export async function createLandingPage(
     if (isUniqueViolation(e)) return { ok: false, message: "That slug is already in use." };
     throw e;
   }
+}
+
+/**
+ * 1-click: builds a complete draft landing page from a product (copy, offer packages, variant-aware
+ * checkout) at /lp/<product-slug> (or -2, -3… if taken) and returns its id for the builder.
+ */
+export async function generateLandingFromProduct(
+  productId: string,
+): Promise<{ ok: true; id: string; slug: string } | { ok: false; message: string }> {
+  const user = await requireStaff();
+  if (typeof productId !== "string" || !productId) return { ok: false, message: "Choose a product" };
+
+  const product = await db.product.findUnique({
+    where: { id: productId },
+    include: {
+      variants: {
+        where: { isActive: true },
+        orderBy: { position: "asc" },
+        include: { options: { include: { attribute: { select: { slug: true } }, attributeValue: { select: { value: true } } } } },
+      },
+    },
+  });
+  if (!product || product.status === "ARCHIVED") return { ok: false, message: "Product not found" };
+  if (product.variants.length === 0) return { ok: false, message: "This product has no active variants to sell yet." };
+
+  const values = (attribute: string) => [
+    ...new Set(
+      product.variants.flatMap((v) => v.options.filter((o) => o.attribute.slug === attribute).map((o) => o.attributeValue.value)),
+    ),
+  ];
+  const price = Math.min(...product.variants.map((v) => Number(v.price)));
+  const sections = generateLandingSections({
+    name: product.name,
+    nameBn: product.nameBn,
+    shortDescription: product.shortDescription,
+    fabricCare: product.fabricCare,
+    badge: product.badge,
+    type: product.type,
+    price,
+    colors: values("color"),
+    sizes: values("size"),
+  });
+
+  for (let n = 1; n <= 50; n++) {
+    const pageSlug = n === 1 ? product.slug : `${product.slug}-${n}`;
+    try {
+      const page = await db.landingPage.create({
+        data: {
+          title: `${product.name} — Landing`,
+          slug: pageSlug,
+          productId,
+          createdById: user.id === "dev-admin" ? null : user.id,
+          sections,
+          schemaVersion: LANDING_SCHEMA_VERSION,
+          seoTitle: (product.nameBn ?? product.name).slice(0, 70),
+          seoDescription: product.shortDescription?.replace(/<[^>]*>/g, "").slice(0, 160) || null,
+          offers: { create: generateOffers(price).map((o, position) => ({ ...o, position })) },
+        },
+        select: { id: true },
+      });
+      done(pageSlug);
+      return { ok: true, id: page.id, slug: pageSlug };
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+    }
+  }
+  return { ok: false, message: "Couldn't find a free URL for this product — create the page manually." };
 }
 
 export type SaveLandingResult = { ok: true } | { ok: false; message: string; fieldErrors: Record<string, string> };

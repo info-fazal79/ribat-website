@@ -1,6 +1,12 @@
 "use client";
 
+import { useState } from "react";
+import { Images } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MediaModal } from "@/components/admin/media-modal";
+import { MediaField } from "@/components/admin/media/media-field";
+import { Segmented } from "@/components/admin/appearance/controls";
 import { benefitIconMap } from "@/components/landing/icons";
 import { DateTimeInput, Field, ListEditor, TextArea, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import type { LandingSection } from "@/lib/validations/landing-page";
@@ -63,10 +69,75 @@ export function BlockEditor({
             value={section.props.buttonLabel}
             onChange={(buttonLabel) => onChange({ ...section, props: { ...section.props, buttonLabel } })}
           />
-          <p className="text-xs text-muted-foreground">Offers, delivery areas and variants are set in the Offers and Settings tabs.</p>
+          <p className="text-xs text-muted-foreground">
+            Variable products show colour swatches and size pills here automatically, limited to in-stock options. Pick which variants
+            and delivery areas are offered in Settings.
+          </p>
+        </div>
+      );
+    case "offers":
+      return (
+        <div className="space-y-3">
+          <TextInput label="Section title" bengali value={section.props.title} onChange={(v) => onChange({ ...section, props: { ...section.props, title: blank(v) } })} />
+          <TextInput label="Subtitle" bengali value={section.props.subtitle} onChange={(v) => onChange({ ...section, props: { ...section.props, subtitle: blank(v) } })} />
+          <TextInput
+            label="Card button label"
+            bengali
+            value={section.props.ctaLabel}
+            onChange={(ctaLabel) => onChange({ ...section, props: { ...section.props, ctaLabel } })}
+          />
+        </div>
+      );
+    case "comparison":
+      return <ComparisonEditor props={section.props} errors={errors} onChange={(props) => onChange({ ...section, props })} />;
+    case "stickyBar":
+      return (
+        <div className="space-y-3">
+          <TextInput
+            label="Button label"
+            bengali
+            value={section.props.buttonLabel}
+            onChange={(buttonLabel) => onChange({ ...section, props: { ...section.props, buttonLabel } })}
+          />
+          <Toggle
+            label="Show selected package & price"
+            checked={section.props.showPrice}
+            onChange={(showPrice) => onChange({ ...section, props: { ...section.props, showPrice } })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Pinned to the bottom of phone screens and hidden while the checkout form is visible. Hide this block to turn the bar off.
+          </p>
         </div>
       );
   }
+}
+
+function ComparisonEditor({ props, onChange, errors }: EditorProps<"comparison">) {
+  return (
+    <div className="space-y-3">
+      <TextInput label="Section title" bengali value={props.title} onChange={(v) => onChange({ ...props, title: blank(v) })} />
+      <div className="grid grid-cols-2 gap-2">
+        <TextInput label="Our column" bengali value={props.oursLabel} onChange={(oursLabel) => onChange({ ...props, oursLabel })} />
+        <TextInput label="Other column" bengali value={props.othersLabel} onChange={(othersLabel) => onChange({ ...props, othersLabel })} />
+      </div>
+      <ListEditor
+        items={props.rows}
+        max={15}
+        addLabel="Add row"
+        create={() => ({ feature: "", ours: true, others: false })}
+        onChange={(rows) => onChange({ ...props, rows })}
+        render={(row, update, i) => (
+          <>
+            <TextInput label="Feature" bengali value={row.feature} error={errors[`rows.${i}.feature`]} onChange={(feature) => update({ feature })} />
+            <div className="flex gap-4">
+              <Toggle label={`✓ ${props.oursLabel}`} checked={row.ours} onChange={(ours) => update({ ours })} />
+              <Toggle label={`✓ ${props.othersLabel}`} checked={row.others} onChange={(others) => update({ others })} />
+            </div>
+          </>
+        )}
+      />
+    </div>
+  );
 }
 
 function HeroEditor({ props, onChange, errors }: EditorProps<"hero">) {
@@ -85,14 +156,9 @@ function HeroEditor({ props, onChange, errors }: EditorProps<"hero">) {
         error={errors.countdownEndsAt}
         onChange={(countdownEndsAt) => set({ countdownEndsAt })}
       />
-      <TextInput
-        label="Image URL (optional)"
-        value={props.imageUrl}
-        error={errors.imageUrl}
-        hint="Defaults to the product's first image."
-        placeholder="https://…"
-        onChange={(v) => set({ imageUrl: blank(v) })}
-      />
+      <Field label="Image (optional)" hint="Leave empty to use the product's featured image." error={errors.imageUrl}>
+        <MediaField value={props.imageUrl ?? ""} onChange={(v) => set({ imageUrl: blank(v) })} previewClassName="sm:w-28" />
+      </Field>
       <TextInput
         label="Video URL (optional)"
         value={props.videoUrl}
@@ -143,22 +209,44 @@ function BenefitsEditor({ props, onChange, errors }: EditorProps<"benefits">) {
 }
 
 function GalleryEditor({ props, onChange, errors }: EditorProps<"gallery">) {
+  const [picking, setPicking] = useState(false);
   return (
     <div className="space-y-3">
       <TextInput label="Section title" bengali value={props.title} onChange={(v) => onChange({ ...props, title: blank(v) })} />
-      <Field label="Images" hint="Leave empty to use the product's images (or placeholder art).">
+      <Segmented
+        label="Layout"
+        value={props.layout}
+        options={[
+          { value: "slider", label: "Slider + thumbnails" },
+          { value: "grid", label: "Mosaic grid" },
+        ]}
+        onChange={(layout) => onChange({ ...props, layout })}
+      />
+      <Field label="Images" hint="Leave empty to show all of the product's gallery images (kept in sync with the product).">
         <ListEditor
           items={props.images}
           max={20}
-          addLabel="Add image URL"
+          addLabel="Add image"
           create={() => ({ url: "", alt: "" })}
           onChange={(images) => onChange({ ...props, images })}
           render={(img, update, i) => (
             <>
-              <TextInput label="Image URL" value={img.url} error={errors[`images.${i}.url`]} placeholder="https://…" onChange={(url) => update({ url })} />
+              <MediaField value={img.url} error={errors[`images.${i}.url`]} onChange={(url) => update({ url })} previewClassName="h-20 sm:w-20" />
               <TextInput label="Alt text" value={img.alt} onChange={(v) => update({ alt: blank(v) })} />
             </>
           )}
+        />
+        <Button type="button" variant="outline" size="sm" className="mt-2" disabled={props.images.length >= 20} onClick={() => setPicking(true)}>
+          <Images /> Add several from Media Library
+        </Button>
+        <MediaModal
+          open={picking}
+          onOpenChange={setPicking}
+          multiple
+          title="Add gallery images"
+          onSelect={(items) =>
+            onChange({ ...props, images: [...props.images, ...items.map((m) => ({ url: m.url, alt: m.name }))].slice(0, 20) })
+          }
         />
       </Field>
       <TextInput
@@ -191,6 +279,15 @@ function ReviewsEditor({ props, onChange, errors }: EditorProps<"reviews">) {
   return (
     <div className="space-y-3">
       <TextInput label="Section title" bengali value={props.title} onChange={(v) => onChange({ ...props, title: blank(v) })} />
+      <Segmented
+        label="Layout"
+        value={props.layout}
+        options={[
+          { value: "carousel", label: "Carousel" },
+          { value: "grid", label: "Grid" },
+        ]}
+        onChange={(layout) => onChange({ ...props, layout })}
+      />
       <Toggle
         label="Also show approved product reviews"
         checked={props.source === "product"}
@@ -234,11 +331,11 @@ function ReviewsEditor({ props, onChange, errors }: EditorProps<"reviews">) {
         <ListEditor
           items={props.screenshotUrls.map((url) => ({ url }))}
           max={20}
-          addLabel="Add screenshot URL"
+          addLabel="Add screenshot"
           create={() => ({ url: "" })}
           onChange={(items) => onChange({ ...props, screenshotUrls: items.map((x) => x.url) })}
           render={(s, update, i) => (
-            <TextInput label="Image URL" value={s.url} error={errors[`screenshotUrls.${i}`]} placeholder="https://…" onChange={(url) => update({ url })} />
+            <MediaField value={s.url} error={errors[`screenshotUrls.${i}`]} onChange={(url) => update({ url })} previewClassName="h-20 sm:w-20" />
           )}
         />
       </Field>

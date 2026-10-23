@@ -30,12 +30,14 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LandingStatusBadge, StatusPill } from "@/components/admin/status-badge";
 import { StatCard } from "@/components/admin/page-header";
+import { GenerateFromProductButton } from "@/components/admin/landing-pages/generate-from-product";
+import type { LandingProductOption } from "@/server/services/admin";
 import type { AdminLandingPage } from "@/lib/admin/types";
 import { formatCompact, formatDate } from "@/lib/format";
 import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-export function LandingPagesManager({ pages }: { pages: AdminLandingPage[] }) {
+export function LandingPagesManager({ pages, products }: { pages: AdminLandingPage[]; products: LandingProductOption[] }) {
   const [filter, setFilter] = useState<"ALL" | AdminLandingPage["status"]>("ALL");
 
   const live = pages.filter((p) => p.status === "PUBLISHED");
@@ -75,11 +77,14 @@ export function LandingPagesManager({ pages }: { pages: AdminLandingPage[] }) {
               </button>
             ))}
           </div>
-          <Button asChild>
-            <Link href="/admin/landing-pages/new">
-              <Plus /> New landing page
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <GenerateFromProductButton products={products} />
+            <Button variant="outline" asChild>
+              <Link href="/admin/landing-pages/new">
+                <Plus /> New landing page
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <Table>

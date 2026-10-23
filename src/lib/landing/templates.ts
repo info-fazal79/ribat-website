@@ -18,16 +18,22 @@ export const landingTemplates = {
 
 export type LandingTemplate = keyof typeof landingTemplates;
 
-/** Builder palette: label + description per block type. */
-export const blockCatalog: Record<LandingSectionType, { label: string; description: string }> = {
-  hero: { label: "Hero", description: "Headline, price, discount badge, timer & CTA" },
-  benefits: { label: "Benefits", description: "Icon cards highlighting product qualities" },
-  gallery: { label: "Showcase", description: "Images, video and feature highlights" },
-  reviews: { label: "Reviews", description: "Testimonials with ratings & verified badges" },
-  faq: { label: "FAQ", description: "Collapsible questions & answers" },
-  countdown: { label: "Urgency timer", description: "Full-width countdown banner" },
+/**
+ * Builder palette, in "Add block" order: label + description per block type.
+ * `single` blocks may appear once per page (the checkout is the #checkout scroll target).
+ */
+export const blockCatalog: Record<LandingSectionType, { label: string; description: string; single?: boolean }> = {
+  hero: { label: "Hero Banner", description: "Headline, featured image, price, urgency badge & buy CTA" },
+  benefits: { label: "Benefits Grid", description: "Icon cards: fabric, craftsmanship, COD guarantee…" },
+  gallery: { label: "Image / Video Showcase", description: "Interactive gallery, video and feature highlights" },
+  offers: { label: "Offer Packages", description: "1 / 2 / 3-piece bundle cards with discount badges" },
+  comparison: { label: "Comparison Table", description: "Ribat vs. ordinary market, feature by feature" },
+  countdown: { label: "Urgency Countdown", description: "Full-width countdown timer banner" },
+  reviews: { label: "Testimonials", description: "Customer reviews as a grid or swipeable carousel" },
+  faq: { label: "FAQ Accordion", description: "Collapsible questions & answers" },
+  checkout: { label: "1-Click Checkout", description: "Package, colour & size, address — COD order form", single: true },
+  stickyBar: { label: "Sticky Quick-Buy Bar", description: "Mobile bottom bar with price & order button", single: true },
   richText: { label: "Text", description: "A paragraph of plain text" },
-  checkout: { label: "Checkout", description: "Offer selector + COD order form" },
 };
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
@@ -61,7 +67,7 @@ export function newBlock(type: LandingSectionType, id: string, productName = "�
         },
       };
     case "gallery":
-      return { id, type, props: { title: "কাছ থেকে দেখুন", images: [], highlights: [] } };
+      return { id, type, props: { title: "কাছ থেকে দেখুন", images: [], layout: "slider", highlights: [] } };
     case "reviews":
       return {
         id,
@@ -69,6 +75,7 @@ export function newBlock(type: LandingSectionType, id: string, productName = "�
         props: {
           title: "গ্রাহকদের মতামত",
           source: "product",
+          layout: "carousel",
           screenshotUrls: [],
           items: [
             { name: "তানভীর আহমেদ", location: "ঢাকা", rating: 5, body: "কোয়ালিটি অসাধারণ, ছবির মতোই পেয়েছি।", verified: true },
@@ -94,6 +101,31 @@ export function newBlock(type: LandingSectionType, id: string, productName = "�
       return { id, type, props: { html: "" } };
     case "checkout":
       return { id, type, props: { title: "অর্ডার করতে নিচের ফর্মটি পূরণ করুন", buttonLabel: "অর্ডার কনফার্ম করুন" } };
+    case "offers":
+      return {
+        id,
+        type,
+        props: { title: "আপনার প্যাকেজ বেছে নিন", subtitle: "বেশি নিলে বেশি সাশ্রয় — ৩ পিসে ফ্রি ডেলিভারি", ctaLabel: "এই প্যাকেজটি নিন" },
+      };
+    case "comparison":
+      return {
+        id,
+        type,
+        props: {
+          title: "কেন রিবাত আলাদা?",
+          oursLabel: "রিবাত",
+          othersLabel: "সাধারণ বাজার",
+          rows: [
+            { feature: "প্রিমিয়াম ফেব্রিক, দুইবার কোয়ালিটি চেক", ours: true, others: false },
+            { feature: "নিখুঁত সেলাই ও ফিনিশিং", ours: true, others: false },
+            { feature: "পণ্য দেখে ক্যাশ অন ডেলিভারি", ours: true, others: true },
+            { feature: "৭ দিনের সহজ এক্সচেঞ্জ", ours: true, others: false },
+            { feature: "রঙ না ওঠার গ্যারান্টি", ours: true, others: false },
+          ],
+        },
+      };
+    case "stickyBar":
+      return { id, type, props: { buttonLabel: "অর্ডার করতে চাই", showPrice: true } };
   }
 }
 
