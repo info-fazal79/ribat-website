@@ -81,6 +81,16 @@ const optionalUrl = z
 const heroSlide = z.object({
   id: z.string().min(1).max(40).default(() => Math.random().toString(36).slice(2, 10)),
   active: z.boolean().default(true),
+  // "product": headline, price, photo and button link come from a linked product at render time;
+  // the stored text/visual fields are a snapshot used for overrides and if the product goes away.
+  mode: z.enum(["custom", "product"]).default("custom"),
+  product: z
+    .object({
+      id: z.string().max(40).default(""),
+      overrideTitle: z.boolean().default(false),
+      overrideBadge: z.boolean().default(false),
+    })
+    .prefault({}),
   background: z
     .object({
       type: z.enum(["solid", "gradient", "image", "video"]).default("gradient"),
@@ -122,7 +132,12 @@ const heroSlide = z.object({
 export type HeroSlideSetting = z.infer<typeof heroSlide>;
 
 export const newHeroSlide = (): HeroSlideSetting =>
-  heroSlide.parse({ title: "New slide headline", primary: { label: "Shop now", url: "/products" }, secondary: { enabled: false } });
+  heroSlide.parse({
+    title: "New slide headline",
+    primary: { label: "Shop now", url: "/products" },
+    secondary: { enabled: false },
+    visual: { type: "image" },
+  });
 
 /** The original storefront slides — used until an admin saves their own. */
 const defaultHeroSlides = (

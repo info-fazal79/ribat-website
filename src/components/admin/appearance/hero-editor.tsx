@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Eye, GripVertical, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronsDownUp, ChevronsUpDown, Eye, GripVertical, ImageOff, Plus, Search, Trash2 } from "lucide-react";
 import { ColorInput, Segmented, Switch } from "@/components/admin/appearance/controls";
 import { Field, TextArea, TextInput } from "@/components/admin/landing-builder/fields";
 import { MediaField } from "@/components/admin/media/media-field";
 import { HeroSlideView } from "@/components/storefront/home/hero-slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { productHref, resolveHeroSlide, type HeroProduct } from "@/lib/hero";
+import { formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { newHeroSlide, type HeroSlideSetting, type SettingValue } from "@/lib/validations/settings";
 
@@ -20,10 +22,13 @@ const BG_LABEL = { solid: "Solid", gradient: "Gradient", image: "Image", video: 
 /** Hero Slider manager: global autoplay settings, sortable slide cards and a scaled live preview. */
 export function HeroEditor({
   value,
+  products,
   onChange,
   errors,
 }: {
   value: HeroSettings;
+  /** Published products available for "Linked Product" slides. */
+  products: HeroProduct[];
   onChange: (value: HeroSettings) => void;
   errors: Record<string, string>;
 }) {
@@ -95,7 +100,7 @@ export function HeroEditor({
         </div>
         {preview ? (
           <ScaledPreview>
-            <HeroSlideView slide={preview} active className="relative h-full w-full overflow-hidden" />
+            <HeroSlideView {...resolveHeroSlide(preview, products)} active className="relative h-full w-full overflow-hidden" />
           </ScaledPreview>
         ) : (
           <p className="p-10 text-center text-sm text-muted-foreground">No slides — the storefront shows the built-in default slides.</p>
@@ -166,6 +171,7 @@ export function HeroEditor({
             const isOpen = open.has(slide.id);
             const err = (path: string) => errors[`hero.slides.${index}.${path}`];
             const hasError = Object.keys(errors).some((k) => k.startsWith(`hero.slides.${index}.`));
+            const shown = resolveHeroSlide(slide, products).slide;
             return (
               <li
                 key={slide.id}
@@ -198,7 +204,7 @@ export function HeroEditor({
                   >
                     <GripVertical className="size-4" />
                   </span>
-                  <SlideSwatch slide={slide} />
+                  <SlideSwatch slide={shown} />
                   <button
                     type="button"
                     onClick={() => {
@@ -209,11 +215,11 @@ export function HeroEditor({
                     className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-2 text-left"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className={cn("block truncate text-sm font-medium", !slide.active && "text-muted-foreground")}>{slide.title}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{slide.eyebrow || "No badge"}</span>
+                      <span className={cn("block truncate text-sm font-medium", !slide.active && "text-muted-foreground")}>{shown.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{shown.eyebrow || "No badge"}</span>
                     </span>
                     <span className="hidden shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground sm:inline">
-                      {BG_LABEL[slide.background.type]}
+                      {slide.mode === "product" ? "Linked product" : "Custom"} · {BG_LABEL[slide.background.type]}
                     </span>
                     <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
                   </button>
@@ -232,7 +238,7 @@ export function HeroEditor({
                   </Button>
                 </div>
 
-                {isOpen && <SlideSettings slide={slide} err={err} onChange={(patch) => update(slide.id, patch)} />}
+                {isOpen && <SlideSettings slide={slide} products={products} err={err} onChange={(patch) => update(slide.id, patch)} />}
               </li>
             );
           })}
@@ -292,19 +298,93 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function SlideSettings({
   slide,
+  products,
   err,
   onChange,
 }: {
   slide: Slide;
+  products: HeroProduct[];
   err: (path: string) => string | undefined;
   onChange: (patch: Partial<Slide>) => void;
 }) {
   const bg = slide.background;
   const setBg = (patch: Partial<Slide["background"]>) => onChange({ background: { ...bg, ...patch } });
   const setVisual = (patch: Partial<Slide["visual"]>) => onChange({ visual: { ...slide.visual, ...patch } });
+  const setLink = (patch: Partial<Slide["product"]>) => onChange({ product: { ...slide.product, ...patch } });
+  const linked = slide.mode === "product";
+  const product = linked ? products.find((p) => p.id === slide.product.id) : undefined;
+
+  // Picking a product also snapshots its details into the slide, so overrides start from the
+  // product's own text and the slide still renders sensibly if the product is later unpublished.
+  const pickProduct = (p: HeroProduct) => onChange(resolveHeroSlide({ ...slide, product: { ...slide.product, id: p.id } }, [p]).slide);
 
   return (
     <div className="border-t bg-muted/20">
+      <Section title="Slide mode">
+        <Segmented
+          label="Content source"
+          value={slide.mode}
+          options={[
+            { value: "product", label: "Linked Product (Dynamic Auto-fill)" },
+            { value: "custom", label: "Custom Content & Artwork" },
+          ]}
+          onChange={(mode) => onChange({ mode })}
+        />
+        {linked ? (
+          <div className="space-y-4">
+            <Field
+              label="Product"
+              hint="Published products only. Headline, price, featured image and button link stay in sync with the product."
+              error={err("product.id")}
+            >
+              <ProductPicker products={products} value={slide.product.id} onChange={pickProduct} invalid={!!err("product.id")} />
+            </Field>
+            {slide.product.id && !product && (
+              <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                The linked product is no longer published — the storefront shows the last saved details. Pick another product or switch to
+                Custom Content.
+              </p>
+            )}
+            {product && !product.image && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ImageOff className="size-3.5" />
+                This product has no photos yet, so the arch shows a faint placeholder until you add one.
+              </p>
+            )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-3 rounded-lg border bg-background p-3">
+                <Switch
+                  checked={slide.product.overrideTitle}
+                  onChange={(overrideTitle) => setLink({ overrideTitle })}
+                  label="Override headline"
+                  description="Use your own headline, Bengali subtitle and description instead of the product's."
+                />
+                {slide.product.overrideTitle && (
+                  <>
+                    <TextInput label="Main headline" value={slide.title} error={err("title")} onChange={(title) => onChange({ title })} />
+                    <TextInput label="Bengali subtitle" value={slide.titleBn} bengali onChange={(titleBn) => onChange({ titleBn })} />
+                    <TextArea label="Description" value={slide.body} rows={2} onChange={(body) => onChange({ body })} />
+                  </>
+                )}
+              </div>
+              <div className="space-y-3 rounded-lg border bg-background p-3">
+                <Switch
+                  checked={slide.product.overrideBadge}
+                  onChange={(overrideBadge) => setLink({ overrideBadge })}
+                  label="Override badge text"
+                  description={`Default: the product badge${product?.badge ? ` (“${product.badge}”)` : ""}, or “Featured”.`}
+                />
+                {slide.product.overrideBadge && (
+                  <TextInput label="Tag / badge" value={slide.eyebrow} placeholder="EID EXCLUSIVE" onChange={(eyebrow) => onChange({ eyebrow })} />
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Write your own headline and buttons, and upload any model photo or product cut-out below.</p>
+        )}
+      </Section>
+
       <Section title="Background">
         <Segmented
           label="Type"
@@ -398,33 +478,41 @@ function SlideSettings({
         </div>
       </Section>
 
-      <Section title="Content">
-        <div className="grid gap-3 md:grid-cols-2">
-          <TextInput label="Tag / badge" value={slide.eyebrow} placeholder="THE EID EDIT · 2026" onChange={(eyebrow) => onChange({ eyebrow })} />
-          <TextInput
-            label="Main headline"
-            value={slide.title}
-            placeholder="Quiet luxury for sacred moments."
-            error={err("title")}
-            onChange={(title) => onChange({ title })}
-          />
-          <TextInput
-            label="Bengali subtitle"
-            value={slide.titleBn}
-            placeholder="পবিত্র মুহূর্তের জন্য নিঃশব্দ আভিজাত্য"
-            bengali
-            onChange={(titleBn) => onChange({ titleBn })}
-          />
-          <TextArea label="Description" value={slide.body} rows={2} onChange={(body) => onChange({ body })} />
-        </div>
-      </Section>
+      {!linked && (
+        <Section title="Content">
+          <div className="grid gap-3 md:grid-cols-2">
+            <TextInput label="Tag / badge" value={slide.eyebrow} placeholder="THE EID EDIT · 2026" onChange={(eyebrow) => onChange({ eyebrow })} />
+            <TextInput
+              label="Main headline"
+              value={slide.title}
+              placeholder="Quiet luxury for sacred moments."
+              error={err("title")}
+              onChange={(title) => onChange({ title })}
+            />
+            <TextInput
+              label="Bengali subtitle"
+              value={slide.titleBn}
+              placeholder="পবিত্র মুহূর্তের জন্য নিঃশব্দ আভিজাত্য"
+              bengali
+              onChange={(titleBn) => onChange({ titleBn })}
+            />
+            <TextArea label="Description" value={slide.body} rows={2} onChange={(body) => onChange({ body })} />
+          </div>
+        </Section>
+      )}
 
       <Section title="Buttons">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3 rounded-lg border bg-background p-3">
             <p className="text-sm font-medium">Primary button</p>
             <TextInput label="Label" value={slide.primary.label} placeholder="SHOP PANJABI" error={err("primary.label")} onChange={(label) => onChange({ primary: { ...slide.primary, label } })} />
-            <TextInput label="Link" value={slide.primary.url} placeholder="/categories/panjabi" error={err("primary.url")} onChange={(url) => onChange({ primary: { ...slide.primary, url } })} />
+            {linked ? (
+              <Field label="Link" hint="Set automatically from the linked product.">
+                <Input value={product ? productHref(product) : slide.primary.url} readOnly disabled />
+              </Field>
+            ) : (
+              <TextInput label="Link" value={slide.primary.url} placeholder="/categories/panjabi" error={err("primary.url")} onChange={(url) => onChange({ primary: { ...slide.primary, url } })} />
+            )}
           </div>
           <div className="space-y-3 rounded-lg border bg-background p-3">
             <Switch
@@ -443,34 +531,12 @@ function SlideSettings({
       </Section>
 
       <Section title="Right-side visual">
-        <div className="flex flex-wrap items-end gap-6">
-          <Segmented
-            label="Show"
-            value={slide.visual.type}
-            options={[
-              { value: "illustration", label: "Garment illustration" },
-              { value: "image", label: "Photo" },
-              { value: "none", label: "Nothing" },
-            ]}
-            onChange={(type) => setVisual({ type })}
-          />
-          {slide.visual.type === "illustration" && (
+        {linked ? (
+          <div className="flex flex-wrap items-end gap-6">
+            {/* eslint-disable-next-line @next/next/no-img-element -- product asset */}
+            {product?.image && <img src={product.image} alt="" className="h-28 w-20 rounded-md border bg-background object-contain" />}
             <Segmented
-              label="Garment"
-              value={slide.visual.art}
-              options={[
-                { value: "panjabi", label: "Panjabi" },
-                { value: "thobe", label: "Thobe" },
-                { value: "abaya", label: "Abaya" },
-                { value: "casual", label: "Casual" },
-                { value: "fragrance", label: "Attar" },
-              ]}
-              onChange={(art) => setVisual({ art })}
-            />
-          )}
-          {slide.visual.type === "image" && (
-            <Segmented
-              label="Fit"
+              label="Fit (product featured image)"
               value={slide.visual.fit}
               options={[
                 { value: "cover", label: "Fill arch (model photo)" },
@@ -478,14 +544,163 @@ function SlideSettings({
               ]}
               onChange={(fit) => setVisual({ fit })}
             />
-          )}
-        </div>
-        {slide.visual.type === "image" && (
-          <Field label="Model / product photo" hint="Portrait photo, or a transparent cut-out PNG. Hidden on mobile." error={err("visual.imageUrl")}>
-            <MediaField value={slide.visual.imageUrl} onChange={(imageUrl) => setVisual({ imageUrl })} previewClassName="h-36 sm:w-28" />
-          </Field>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-6">
+              <Segmented
+                label="Show"
+                value={slide.visual.type}
+                options={[
+                  { value: "illustration", label: "Garment illustration" },
+                  { value: "image", label: "Photo" },
+                  { value: "none", label: "Nothing" },
+                ]}
+                onChange={(type) => setVisual({ type })}
+              />
+              {slide.visual.type === "illustration" && (
+                <Segmented
+                  label="Garment"
+                  value={slide.visual.art}
+                  options={[
+                    { value: "panjabi", label: "Panjabi" },
+                    { value: "thobe", label: "Thobe" },
+                    { value: "abaya", label: "Abaya" },
+                    { value: "casual", label: "Casual" },
+                    { value: "fragrance", label: "Attar" },
+                  ]}
+                  onChange={(art) => setVisual({ art })}
+                />
+              )}
+              {slide.visual.type === "image" && (
+                <Segmented
+                  label="Fit"
+                  value={slide.visual.fit}
+                  options={[
+                    { value: "cover", label: "Fill arch (model photo)" },
+                    { value: "contain", label: "Fit (cut-out PNG)" },
+                  ]}
+                  onChange={(fit) => setVisual({ fit })}
+                />
+              )}
+            </div>
+            {slide.visual.type === "image" && (
+              <Field label="Model / product photo" hint="Portrait photo, or a transparent cut-out PNG. Hidden on mobile." error={err("visual.imageUrl")}>
+                <MediaField value={slide.visual.imageUrl} onChange={(imageUrl) => setVisual({ imageUrl })} previewClassName="h-36 sm:w-28" />
+              </Field>
+            )}
+          </>
         )}
       </Section>
     </div>
+  );
+}
+
+/** Searchable product dropdown (thumbnail, name, price). */
+function ProductPicker({
+  products,
+  value,
+  onChange,
+  invalid,
+}: {
+  products: HeroProduct[];
+  value: string;
+  onChange: (product: HeroProduct) => void;
+  invalid?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = products.find((p) => p.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? products.filter((p) => p.name.toLowerCase().includes(q) || p.slug.includes(q) || p.nameBn?.includes(query.trim()))
+    : products;
+
+  return (
+    <div ref={ref} className="relative" onKeyDown={(e) => e.key === "Escape" && setOpen(false)}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className={cn("flex w-full items-center gap-3 rounded-md border bg-background p-2 text-left text-sm", invalid && "border-destructive")}
+      >
+        {selected ? <ProductRow product={selected} /> : <span className="flex-1 px-1 text-muted-foreground">Select a published product…</span>}
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-md border bg-popover shadow-lg">
+          <div className="flex items-center gap-2 border-b px-3">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search products…"
+              className="h-9 w-full bg-transparent text-sm outline-none"
+            />
+          </div>
+          <ul role="listbox" className="max-h-72 overflow-y-auto p-1">
+            {matches.length === 0 && (
+              <li className="px-3 py-6 text-center text-xs text-muted-foreground">
+                {products.length ? "No products match." : "No published products yet."}
+              </li>
+            )}
+            {matches.map((p) => (
+              <li key={p.id} role="option" aria-selected={p.id === value}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange(p);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className={cn("flex w-full items-center gap-3 rounded p-1.5 text-left text-sm hover:bg-muted", p.id === value && "bg-muted")}
+                >
+                  <ProductRow product={p} />
+                  {p.id === value && <Check className="size-4 shrink-0 text-primary" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductRow({ product }: { product: HeroProduct }) {
+  return (
+    <>
+      <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded border bg-muted">
+        {product.image ? (
+          // eslint-disable-next-line @next/next/no-img-element -- product asset
+          <img src={product.image} alt="" className="size-full object-cover" />
+        ) : (
+          <ImageOff className="size-4 text-muted-foreground" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{product.name}</span>
+        <span className="block truncate text-xs text-muted-foreground tabular-nums">
+          {formatBDT(product.price)}
+          {product.compareAtPrice && product.compareAtPrice > product.price && (
+            <span className="ml-1.5 line-through">{formatBDT(product.compareAtPrice)}</span>
+          )}
+          {product.badge && <span> · {product.badge}</span>}
+        </span>
+      </span>
+    </>
   );
 }

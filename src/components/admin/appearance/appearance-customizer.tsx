@@ -15,6 +15,7 @@ import { SiteLogo } from "@/components/storefront/site-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { HeroProduct } from "@/lib/hero";
 import { cn } from "@/lib/utils";
 import type { SettingValue } from "@/lib/validations/settings";
 
@@ -26,7 +27,11 @@ type Draft = { branding: Branding; announcement: Announcement; headerMenu: Heade
 
 const DEFAULT_COLORS = { backgroundColor: "#123e31", textColor: "#d4af37" };
 
-export function AppearanceCustomizer({ categories, ...initial }: Draft & { categories: QuickAddCategory[] }) {
+export function AppearanceCustomizer({
+  categories,
+  products,
+  ...initial
+}: Draft & { categories: QuickAddCategory[]; products: HeroProduct[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(initial);
   const [saved, setSaved] = useState(() => JSON.stringify(initial));
@@ -249,7 +254,7 @@ export function AppearanceCustomizer({ categories, ...initial }: Draft & { categ
         </TabsContent>
 
         <TabsContent value="hero" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
-          <HeroEditor value={draft.hero} errors={errors} onChange={(hero) => setDraft((d) => ({ ...d, hero }))} />
+          <HeroEditor value={draft.hero} products={products} errors={errors} onChange={(hero) => setDraft((d) => ({ ...d, hero }))} />
         </TabsContent>
 
         <TabsContent value="menus" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">

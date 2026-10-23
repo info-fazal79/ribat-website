@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { GeometricPattern, Silhouette } from "@/components/storefront/art";
+import { resolveHeroSlide, type HeroProduct } from "@/lib/hero";
+import { formatBDT } from "@/lib/money";
 import type { HeroSlideSetting, SettingValue } from "@/lib/validations/settings";
 import { cn } from "@/lib/utils";
 
 type HeroSettings = SettingValue<"hero_slides">;
 
-export function HeroSlider({ settings }: { settings: HeroSettings }) {
+export function HeroSlider({ settings, products = [] }: { settings: HeroSettings; products?: HeroProduct[] }) {
   const { slides, autoplay, pauseOnHover } = settings;
   const intervalMs = settings.interval * 1000;
   const [index, setIndex] = useState(0);
@@ -40,7 +42,7 @@ export function HeroSlider({ settings }: { settings: HeroSettings }) {
       {slides.map((slide, i) => (
         <HeroSlideView
           key={slide.id}
-          slide={slide}
+          {...resolveHeroSlide(slide, products)}
           active={i === index}
           first={i === 0}
           label={`${i + 1} of ${slides.length}`}
@@ -116,15 +118,18 @@ function backgroundCss(bg: HeroSlideSetting["background"]) {
   return bg.color;
 }
 
-/** One slide. Also used by the admin Hero Slider preview. */
+/** One (already resolved) slide. Also used by the admin Hero Slider preview. */
 export function HeroSlideView({
   slide,
+  product = null,
   active,
   first = false,
   label,
   className,
 }: {
   slide: HeroSlideSetting;
+  /** Linked product — adds the price line under the headline. */
+  product?: HeroProduct | null;
   active: boolean;
   first?: boolean;
   label?: string;
@@ -134,6 +139,8 @@ export function HeroSlideView({
   const { background: bg, visual, accent } = slide;
   const media = bg.type === "image" ? bg.imageUrl : bg.type === "video" ? bg.videoUrl : "";
   const Heading = first ? "h1" : "h2";
+  const photo = visual.type === "image" ? visual.imageUrl : "";
+  const compareAt = product?.compareAtPrice && product.compareAtPrice > product.price ? product.compareAtPrice : null;
 
   return (
     <div
@@ -169,7 +176,7 @@ export function HeroSlideView({
       {media && bg.overlay > 0 && <div className="absolute inset-0 bg-black" style={{ opacity: bg.overlay / 100 }} />}
       {bg.pattern && <GeometricPattern color={accent} opacity={0.14} />}
 
-      {/* Right-side visual: arch with the drawn garment or a real photo */}
+      {/* Right-side visual: arch with a real photo; the drawn garment only when there is none */}
       {visual.type !== "none" && (
         <div
           className={cn(
@@ -182,29 +189,32 @@ export function HeroSlideView({
             background: `linear-gradient(180deg, color-mix(in oklch, ${accent} 16%, transparent), transparent 75%)`,
           }}
         >
-          {visual.type === "image" && visual.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- media library asset
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element -- media library / product asset
             <img
-              src={visual.imageUrl}
-              alt=""
+              src={photo}
+              alt={product?.name ?? ""}
+              fetchPriority={first ? "high" : undefined}
               className={cn(
                 "absolute inset-0 size-full transition-transform duration-[2000ms] ease-out",
-                visual.fit === "cover" ? "object-cover" : "object-contain object-bottom p-[6%] pb-0",
+                visual.fit === "cover"
+                  ? "object-cover"
+                  : "object-contain object-bottom p-[6%] pb-0 drop-shadow-[0_18px_28px_rgba(0,0,0,0.28)] lg:drop-shadow-[0_28px_44px_rgba(0,0,0,0.32)]",
                 active ? "scale-100" : "scale-95",
               )}
             />
           ) : (
-            visual.type === "illustration" && (
-              <Silhouette
-                kind={visual.art}
-                fill={`color-mix(in oklch, ${accent} ${light ? 30 : 55}%, ${bg.color})`}
-                stroke={accent}
-                className={cn(
-                  "absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto transition-transform duration-[2000ms] ease-out",
-                  active ? "scale-100" : "scale-95",
-                )}
-              />
-            )
+            <Silhouette
+              kind={visual.art}
+              fill={`color-mix(in oklch, ${accent} ${light ? 30 : 55}%, ${bg.color})`}
+              stroke={accent}
+              className={cn(
+                "absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto transition-transform duration-[2000ms] ease-out",
+                // A photo slot with no photo yet gets a faint placeholder rather than full artwork.
+                visual.type === "image" && "opacity-30",
+                active ? "scale-100" : "scale-95",
+              )}
+            />
           )}
         </div>
       )}
@@ -224,6 +234,22 @@ export function HeroSlideView({
           )}
           <Heading className="text-5xl leading-[1.02] font-medium md:text-7xl">{slide.title}</Heading>
           {slide.titleBn && <p className="font-bengali text-lg opacity-90">{slide.titleBn}</p>}
+          {product && (
+            <p className="flex flex-wrap items-center gap-3 tabular-nums">
+              <span className="text-2xl font-medium">{formatBDT(product.price)}</span>
+              {compareAt && (
+                <>
+                  <span className="text-base line-through opacity-60">{formatBDT(compareAt)}</span>
+                  <span
+                    className="px-2 py-0.5 text-[10px] font-semibold tracking-[0.2em] uppercase"
+                    style={{ background: accent, color: light ? "#13231e" : "#f6f1e7" }}
+                  >
+                    {Math.round((1 - product.price / compareAt) * 100)}% off
+                  </span>
+                </>
+              )}
+            </p>
+          )}
           {slide.body && <p className="max-w-md text-sm leading-relaxed opacity-75 md:text-base">{slide.body}</p>}
           <div className="flex flex-wrap gap-3 pt-2">
             <Link

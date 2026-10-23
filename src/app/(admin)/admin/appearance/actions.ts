@@ -28,6 +28,14 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
   if (branding.logoType === "image" && !branding.logoUrl) {
     return { ok: false, message: "Add a logo image URL or switch to Text logo.", fieldErrors: { "branding.logoUrl": "Required for an image logo" } };
   }
+  const unlinked = hero.slides.findIndex((s) => s.mode === "product" && !s.product.id);
+  if (unlinked !== -1) {
+    return {
+      ok: false,
+      message: `Slide ${unlinked + 1}: choose a product or switch to Custom Content.`,
+      fieldErrors: { [`hero.slides.${unlinked}.product.id`]: "Choose a product" },
+    };
+  }
 
   await db.$transaction([
     db.setting.upsert({ where: { key: "appearance.branding" }, update: { value: branding }, create: { key: "appearance.branding", value: branding } }),
