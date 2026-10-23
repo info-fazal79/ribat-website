@@ -125,6 +125,11 @@ const heroSlide = z.object({
       art: z.enum(["panjabi", "abaya", "thobe", "casual", "fragrance"]).default("panjabi"),
       imageUrl: optionalUrl,
       fit: z.enum(["cover", "contain"]).default("cover"),
+      // Frame around the visual (see HERO_SHAPES) and its looping effect (see HERO_EFFECTS).
+      shape: z
+        .enum(["islamic_arch", "moroccan_arch", "squircle", "pill", "rounded_card", "diagonal_cut", "natural"])
+        .default("islamic_arch"),
+      effect: z.enum(["none", "light_sheen", "ambient_glow", "subtle_float", "cinematic_zoom"]).default("none"),
     })
     .prefault({}),
 });

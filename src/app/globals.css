@@ -149,6 +149,20 @@
   to { transform: scaleX(1); }
 }
 
+/* Hero visual effects (transform/opacity only, so they stay on the compositor) */
+@keyframes ribat-sheen {
+  0% { transform: translate(-180%, -20%) rotate(20deg); }
+  45%, 100% { transform: translate(420%, 20%) rotate(20deg); }
+}
+@keyframes ribat-glow {
+  0%, 100% { opacity: 0.45; transform: scale(0.94); }
+  50% { opacity: 0.9; transform: scale(1.04); }
+}
+@keyframes ribat-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 /* Announcement bar ticker */
 @keyframes ribat-marquee {
   from { transform: translateX(0); }

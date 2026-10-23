@@ -5,6 +5,7 @@ import { Check, ChevronDown, ChevronsDownUp, ChevronsUpDown, Eye, GripVertical, 
 import { ColorInput, Segmented, Switch } from "@/components/admin/appearance/controls";
 import { Field, TextArea, TextInput } from "@/components/admin/landing-builder/fields";
 import { MediaField } from "@/components/admin/media/media-field";
+import { HERO_EFFECTS, HERO_SHAPES, type HeroEffect, type HeroShape } from "@/components/storefront/home/hero-frame";
 import { HeroSlideView } from "@/components/storefront/home/hero-slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -590,6 +591,55 @@ function SlideSettings({
               </Field>
             )}
           </>
+        )}
+        {(linked || slide.visual.type !== "none") && (
+          <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
+            <Field label="Frame shape">
+              <div role="radiogroup" aria-label="Frame shape" className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {(Object.keys(HERO_SHAPES) as HeroShape[]).map((shape) => {
+                  const selected = slide.visual.shape === shape;
+                  return (
+                    <button
+                      key={shape}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setVisual({ shape })}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-md border bg-background px-1 py-2 text-[11px] leading-tight text-muted-foreground transition-colors hover:text-foreground",
+                        selected && "border-primary text-foreground ring-1 ring-primary",
+                      )}
+                    >
+                      <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="h-9 w-[1.6rem] overflow-visible" aria-hidden>
+                        <path
+                          d={HERO_SHAPES[shape].path}
+                          fill={selected ? "color-mix(in oklch, currentColor 15%, transparent)" : "none"}
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                          strokeDasharray={shape === "natural" ? "3 2" : undefined}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
+                      <span className="text-center">{HERO_SHAPES[shape].label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Field>
+            <Field label="Animation effect" hint="Plays on the visible slide only; off for visitors who prefer reduced motion.">
+              <select
+                value={slide.visual.effect}
+                onChange={(e) => setVisual({ effect: e.target.value as HeroEffect })}
+                className="h-8 w-full rounded-md border bg-background px-2 text-sm"
+              >
+                {(Object.entries(HERO_EFFECTS) as [HeroEffect, string][]).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
         )}
       </Section>
     </div>

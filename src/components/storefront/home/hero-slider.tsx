@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { GeometricPattern, Silhouette } from "@/components/storefront/art";
+import { HeroFrame } from "@/components/storefront/home/hero-frame";
 import { resolveHeroSlide, type HeroProduct } from "@/lib/hero";
 import { formatBDT } from "@/lib/money";
 import type { HeroSlideSetting, SettingValue } from "@/lib/validations/settings";
@@ -178,45 +179,18 @@ export function HeroSlideView({
 
       {/* Right-side visual: arch with a real photo; the drawn garment only when there is none */}
       {visual.type !== "none" && (
-        <div
-          className={cn(
-            "absolute top-[10%] right-[4%] bottom-0 hidden aspect-[3/4.2] overflow-hidden rounded-t-full border md:block lg:right-[8%]",
-            "transition-all duration-[1400ms] ease-out",
-            active ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
-          )}
-          style={{
-            borderColor: `color-mix(in oklch, ${accent} 45%, transparent)`,
-            background: `linear-gradient(180deg, color-mix(in oklch, ${accent} 16%, transparent), transparent 75%)`,
-          }}
-        >
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element -- media library / product asset
-            <img
-              src={photo}
-              alt={product?.name ?? ""}
-              fetchPriority={first ? "high" : undefined}
-              className={cn(
-                "absolute inset-0 size-full transition-transform duration-[2000ms] ease-out",
-                visual.fit === "cover"
-                  ? "object-cover"
-                  : "object-contain object-bottom p-[6%] pb-0 drop-shadow-[0_18px_28px_rgba(0,0,0,0.28)] lg:drop-shadow-[0_28px_44px_rgba(0,0,0,0.32)]",
-                active ? "scale-100" : "scale-95",
-              )}
-            />
-          ) : (
-            <Silhouette
-              kind={visual.art}
-              fill={`color-mix(in oklch, ${accent} ${light ? 30 : 55}%, ${bg.color})`}
-              stroke={accent}
-              className={cn(
-                "absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto transition-transform duration-[2000ms] ease-out",
-                // A photo slot with no photo yet gets a faint placeholder rather than full artwork.
-                visual.type === "image" && "opacity-30",
-                active ? "scale-100" : "scale-95",
-              )}
-            />
-          )}
-        </div>
+        <HeroFrame visual={visual} photo={photo} alt={product?.name ?? ""} accent={accent} active={active} first={first}>
+          <Silhouette
+            kind={visual.art}
+            fill={`color-mix(in oklch, ${accent} ${light ? 30 : 55}%, ${bg.color})`}
+            stroke={accent}
+            className={cn(
+              "absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto",
+              // A photo slot with no photo yet gets a faint placeholder rather than full artwork.
+              visual.type === "image" && "opacity-30",
+            )}
+          />
+        </HeroFrame>
       )}
 
       <div className="relative z-10 container mx-auto flex h-full items-center px-4">
