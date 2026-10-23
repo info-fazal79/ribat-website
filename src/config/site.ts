@@ -23,13 +23,6 @@ export const storefrontNav = [
   { title: "Fragrance", href: "/categories/fragrance" },
 ] as const;
 
-export const announcements = [
-  "Free delivery on orders over ৳3,000",
-  "ক্যাশ অন ডেলিভারি — সারা বাংলাদেশে",
-  "7-day easy exchange",
-  "The Eid Edit is here — up to 25% off",
-] as const;
-
 export const adminNav = [
   { title: "Dashboard", href: "/admin", icon: "LayoutDashboard" },
   { title: "Orders", href: "/admin/orders", icon: "ShoppingBag" },
@@ -39,5 +32,6 @@ export const adminNav = [
   { title: "Landing Pages", href: "/admin/landing-pages", icon: "PanelsTopLeft" },
   { title: "Coupons", href: "/admin/coupons", icon: "TicketPercent" },
   { title: "Customers", href: "/admin/customers", icon: "Users" },
+  { title: "Appearance", href: "/admin/appearance", icon: "Palette" },
   { title: "Settings", href: "/admin/settings", icon: "Settings" },
 ] as const;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter, Noto_Sans_Bengali } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { siteConfig } from "@/config/site";
+import { getSetting } from "@/server/services/settings";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,7 +21,15 @@ const notoBengali = Noto_Sans_Bengali({
   subsets: ["bengali"],
 });
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const { faviconUrl } = await getSetting("appearance.branding");
+  return {
+    ...baseMetadata,
+    ...(faviconUrl && { icons: { icon: faviconUrl } }),
+  };
+}
+
+const baseMetadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
     default: `${siteConfig.name} — ${siteConfig.tagline}`,

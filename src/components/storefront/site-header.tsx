@@ -2,32 +2,17 @@ import Link from "next/link";
 import { Heart, Menu, Search, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { CartDrawer } from "@/components/storefront/cart-drawer";
-import { announcements, siteConfig, storefrontNav } from "@/config/site";
+import { SiteLogo } from "@/components/storefront/site-logo";
+import { siteConfig, storefrontNav } from "@/config/site";
+import { getSetting } from "@/server/services/settings";
 
-function AnnouncementBar() {
-  // Duplicated list so the marquee loops seamlessly at -50%.
-  const items = [...announcements, ...announcements];
-  return (
-    <div className="overflow-hidden bg-primary py-2 text-[11px] tracking-[0.2em] text-primary-foreground uppercase">
-      <div className="flex w-max" style={{ animation: "ribat-marquee 40s linear infinite" }}>
-        {items.map((text, i) => (
-          <span key={i} className="flex items-center gap-10 px-5" aria-hidden={i >= announcements.length}>
-            <span className={/[ঀ-৿]/.test(text) ? "font-bengali tracking-normal normal-case" : undefined}>
-              {text}
-            </span>
-            <span className="text-gold">✦</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function SiteHeader() {
+export async function SiteHeader() {
+  const [branding, announcement] = await Promise.all([getSetting("appearance.branding"), getSetting("appearance.announcement")]);
   return (
     <>
-      <AnnouncementBar />
+      <AnnouncementBar settings={announcement} />
       <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur-md">
         <div className="container mx-auto grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 md:h-20">
           <div className="flex items-center">
@@ -59,12 +44,7 @@ export function SiteHeader() {
           </div>
 
           <Link href="/" className="text-center leading-none">
-            <span className="block font-heading text-3xl font-semibold tracking-[0.35em] uppercase md:text-4xl">
-              {siteConfig.name}
-            </span>
-            <span className="mt-1 hidden text-[9px] tracking-[0.4em] text-muted-foreground uppercase md:block">
-              Est. Dhaka
-            </span>
+            <SiteLogo branding={branding} />
           </Link>
 
           <div className="flex items-center justify-end gap-0.5">

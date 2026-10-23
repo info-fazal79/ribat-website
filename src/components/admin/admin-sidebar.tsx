@@ -7,6 +7,7 @@ import {
   Boxes,
   FolderTree,
   LayoutDashboard,
+  Palette,
   PanelsTopLeft,
   Settings,
   Shirt,
@@ -26,6 +27,7 @@ const icons = {
   PanelsTopLeft,
   TicketPercent,
   Users,
+  Palette,
   Settings,
 } as const;
 
