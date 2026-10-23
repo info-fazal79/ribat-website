@@ -46,6 +46,11 @@ const serverSchema = z.object({
   PATHAO_USERNAME: z.string().optional(),
   PATHAO_PASSWORD: z.string().optional(),
   PATHAO_STORE_ID: z.string().optional(),
+
+  // Supabase Storage (admin uploads). URL defaults to the project in DATABASE_URL.
+  SUPABASE_URL: z.url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().default("brand-assets"),
 });
 
 // Treat `FOO=""` (blank placeholders from .env.example) as unset.

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ImageIcon, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { saveAppearance } from "@/app/(admin)/admin/appearance/actions";
+import { ImageUpload } from "@/components/admin/image-upload";
 import { Field, ListEditor, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { SiteLogo } from "@/components/storefront/site-logo";
@@ -58,23 +59,23 @@ export function AppearanceCustomizer(initial: Draft) {
   const { branding, announcement } = draft;
 
   return (
-    <div className="space-y-6">
-      {/* Live preview */}
-      <div className="overflow-hidden rounded-xl border bg-background">
+    <div className="w-full min-w-0 max-w-full space-y-6">
+      {/* Live preview — contain: inline-size keeps the w-max ticker from contributing to page width. */}
+      <div className="w-full max-w-full overflow-hidden rounded-xl border bg-background [contain:inline-size]">
         <p className="border-b bg-muted/40 px-4 py-2 text-xs font-medium text-muted-foreground">Live preview</p>
         <AnnouncementBar settings={announcement} />
-        <div className="flex h-20 items-center justify-center border-b px-4 text-center leading-none">
+        <div className="flex h-20 flex-col items-center justify-center border-b px-4 text-center leading-none">
           <SiteLogo branding={branding} />
         </div>
       </div>
 
-      <Tabs defaultValue="branding">
-        <TabsList>
+      <Tabs defaultValue="branding" className="min-w-0">
+        <TabsList className="h-auto! w-full max-w-full sm:w-fit max-sm:[&>*]:min-w-0 max-sm:[&>*]:whitespace-normal">
           <TabsTrigger value="branding">Branding & Logo</TabsTrigger>
           <TabsTrigger value="announcement">Top Announcement Bar</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="branding" className="space-y-6 rounded-xl border bg-card p-6">
+        <TabsContent value="branding" className="min-w-0 space-y-6 rounded-xl border bg-card p-6">
           <Field label="Logo type">
             <div className="grid max-w-md grid-cols-2 gap-2">
               {(
@@ -100,17 +101,16 @@ export function AppearanceCustomizer(initial: Draft) {
           </Field>
 
           {branding.logoType === "image" ? (
-            <div className="grid gap-6 md:grid-cols-[1fr_220px]">
-              <div className="space-y-4">
-                <TextInput
-                  label="Logo image URL"
+            <div className="space-y-4">
+              <Field label="Logo image" hint="PNG or SVG with a transparent background works best.">
+                <ImageUpload
+                  folder="logo"
                   value={branding.logoUrl}
-                  placeholder="https://…/ribat-logo.png"
-                  hint="PNG or SVG with a transparent background works best."
                   error={errors["branding.logoUrl"]}
                   onChange={(logoUrl) => setBranding({ logoUrl })}
                 />
-                <div className="grid grid-cols-2 gap-4">
+              </Field>
+              <div className="grid max-w-md grid-cols-2 gap-4">
                   <NumberInput
                     label="Max width (px)"
                     value={branding.logoWidth}
@@ -127,18 +127,7 @@ export function AppearanceCustomizer(initial: Draft) {
                     error={errors["branding.logoHeight"]}
                     onChange={(logoHeight) => setBranding({ logoHeight })}
                   />
-                </div>
               </div>
-              <Field label="Preview">
-                <div className="flex h-36 items-center justify-center rounded-lg border bg-[repeating-conic-gradient(var(--muted)_0_25%,transparent_0_50%)] bg-[length:16px_16px] p-3">
-                  {branding.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- admin-supplied URL preview
-                    <img src={branding.logoUrl} alt="Logo preview" className="max-h-full max-w-full object-contain" />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No image yet</span>
-                  )}
-                </div>
-              </Field>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -146,29 +135,20 @@ export function AppearanceCustomizer(initial: Draft) {
             </p>
           )}
 
-          <div className="grid gap-6 border-t pt-6 md:grid-cols-[1fr_220px]">
-            <TextInput
-              label="Favicon URL"
-              value={branding.faviconUrl}
-              placeholder="https://…/favicon.png"
-              hint="Square PNG or ICO, at least 32×32. Leave empty for the default icon."
-              error={errors["branding.faviconUrl"]}
-              onChange={(faviconUrl) => setBranding({ faviconUrl })}
-            />
-            <Field label="Preview">
-              <div className="flex h-16 items-center justify-center rounded-lg border bg-muted/30">
-                {branding.faviconUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- admin-supplied URL preview
-                  <img src={branding.faviconUrl} alt="Favicon preview" className="size-8 object-contain" />
-                ) : (
-                  <span className="text-xs text-muted-foreground">Default</span>
-                )}
-              </div>
+          <div className="border-t pt-6">
+            <Field label="Favicon" hint="Square PNG or ICO, at least 32×32. Remove it to use the default icon.">
+              <ImageUpload
+                folder="favicon"
+                value={branding.faviconUrl}
+                error={errors["branding.faviconUrl"]}
+                previewClassName="h-20 sm:w-20"
+                onChange={(faviconUrl) => setBranding({ faviconUrl })}
+              />
             </Field>
           </div>
         </TabsContent>
 
-        <TabsContent value="announcement" className="space-y-6 rounded-xl border bg-card p-6">
+        <TabsContent value="announcement" className="min-w-0 space-y-6 rounded-xl border bg-card p-6">
           <Toggle
             label="Show the announcement bar on the storefront"
             checked={announcement.enabled}
@@ -262,7 +242,7 @@ export function AppearanceCustomizer(initial: Draft) {
         </TabsContent>
       </Tabs>
 
-      <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t bg-muted/80 py-4 backdrop-blur">
+      <div className="sticky bottom-0 flex flex-wrap items-center justify-end gap-3 border-t bg-muted/80 py-4 backdrop-blur">
         {dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
         <Button type="button" variant="outline" disabled={!dirty || pending} onClick={() => setDraft(JSON.parse(saved))}>
           Discard
