@@ -1,7 +1,8 @@
 /**
  * Idempotent seed: safe to run repeatedly (`npm run db:seed`).
  * Creates the first admin, shipping zones, core attributes, storefront
- * categories/collections, the starter catalog (prisma/data/catalog.ts) and default settings.
+ * categories/collections, default settings and — only with SEED_DEMO_CATALOG=1 — the starter
+ * catalog (prisma/data/catalog.ts).
  */
 import "dotenv/config";
 import bcrypt from "bcryptjs";
@@ -125,6 +126,12 @@ async function attributeValueId(attributeSlug: "color" | "size", value: string, 
 }
 
 async function seedProducts() {
+  // The real catalog comes from prisma/import-products.ts; the starter catalog is opt-in so a
+  // re-seed never brings the demo products back.
+  if (process.env.SEED_DEMO_CATALOG !== "1") {
+    console.log("↷ Starter catalog skipped (set SEED_DEMO_CATALOG=1 to insert it)");
+    return;
+  }
   let created = 0;
   for (const p of products) {
     // Idempotent: never overwrite a product an admin may have edited.

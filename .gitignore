@@ -43,3 +43,6 @@ next-env.d.ts
 
 # prisma generated client
 /src/generated/
+
+# Source product photos (copied to public/products by `npm run db:import:products`)
+/images/
