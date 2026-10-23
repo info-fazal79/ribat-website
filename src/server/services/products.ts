@@ -68,6 +68,22 @@ async function variantSpecs(input: ProductFormInput): Promise<VariantSpec[]> {
   }));
 }
 
+/**
+ * Makes the product's images match `urls` (in order; position 0 = featured).
+ * Existing rows are updated in place so variant → image links survive reordering.
+ */
+async function syncImages(tx: Prisma.TransactionClient, productId: string, urls: string[]) {
+  const wanted = [...new Set(urls)];
+  const existing = await tx.productImage.findMany({ where: { productId }, select: { id: true, url: true } });
+  const byUrl = new Map(existing.map((img) => [img.url, img.id]));
+  await tx.productImage.deleteMany({ where: { productId, url: { notIn: wanted } } });
+  for (const [position, url] of wanted.entries()) {
+    const id = byUrl.get(url);
+    if (id) await tx.productImage.update({ where: { id }, data: { position } });
+    else await tx.productImage.create({ data: { productId, url, position } });
+  }
+}
+
 /** Creates or updates a product with its variants. Returns the product ID. */
 export async function saveProduct(input: ProductFormInput): Promise<string> {
   const category = await db.category.findUnique({ where: { slug: input.category }, select: { id: true } });
@@ -136,6 +152,8 @@ export async function saveProduct(input: ProductFormInput): Promise<string> {
         const removed = { productId: product.id, optionKey: { notIn: keep } };
         await tx.productVariant.deleteMany({ where: { ...removed, orderItems: { none: {} } } });
         await tx.productVariant.updateMany({ where: removed, data: { isActive: false } });
+
+        await syncImages(tx, product.id, input.images);
 
         return product.id;
       },

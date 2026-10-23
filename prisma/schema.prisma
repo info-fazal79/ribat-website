@@ -292,6 +292,23 @@ model Product {
   @@index([createdAt])
 }
 
+/// Media Library asset. Stored in Supabase Storage when configured (`url` is the public URL,
+/// `data` null); otherwise the bytes live in `data` and are served from /media/<id>.<ext>.
+model Media {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  size      Int // bytes
+  mimeType  String
+  width     Int?
+  height    Int?
+  data      Bytes?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Product photos in display order: position 0 is the featured image, the rest form the gallery.
 model ProductImage {
   id        String  @id @default(cuid())
   productId String

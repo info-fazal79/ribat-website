@@ -78,6 +78,7 @@ export async function getProductForEdit(id: string): Promise<ProductEditData | n
     where: { id },
     include: {
       category: { select: { slug: true } },
+      images: { orderBy: { position: "asc" }, select: { url: true } },
       variants: {
         orderBy: { position: "asc" },
         include: { options: { include: { attribute: { select: { slug: true } }, attributeValue: true } } },
@@ -130,6 +131,7 @@ export async function getProductForEdit(id: string): Promise<ProductEditData | n
     colors,
     sizes,
     variants,
+    images: p.images.map((i) => i.url),
   };
 }
 

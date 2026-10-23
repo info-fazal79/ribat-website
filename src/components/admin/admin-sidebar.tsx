@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import {
   Boxes,
   FolderTree,
+  Images,
   LayoutDashboard,
   Palette,
   PanelsTopLeft,
@@ -23,6 +24,7 @@ const icons = {
   ShoppingBag,
   Shirt,
   FolderTree,
+  Images,
   Boxes,
   PanelsTopLeft,
   TicketPercent,

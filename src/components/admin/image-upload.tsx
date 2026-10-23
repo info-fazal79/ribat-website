@@ -4,28 +4,10 @@ import { useRef, useState } from "react";
 import { ImageUp, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { shrinkImage } from "@/lib/media/client";
 import { cn } from "@/lib/utils";
 
 const ACCEPT = ".png,.jpg,.jpeg,.svg,.webp,.ico,image/png,image/jpeg,image/svg+xml,image/webp,image/x-icon";
-
-/** Resizes large PNG/JPG/WEBP photos in the browser so embedded (base64) images stay small. */
-async function shrink(file: File, max: number): Promise<File> {
-  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return file;
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-    if (scale === 1 && file.size < 300 * 1024) return file;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.85));
-    if (!blob || blob.size >= file.size) return file;
-    return new File([blob], file.name.replace(/\.\w+$/, "") + ".webp", { type: "image/webp" });
-  } catch {
-    return file;
-  }
-}
 
 /** Click / drag & drop image uploader backed by /api/admin/upload. */
 export function ImageUpload({
@@ -53,7 +35,7 @@ export function ImageUpload({
     setUploading(true);
     try {
       const body = new FormData();
-      body.set("file", maxDimension ? await shrink(file, maxDimension) : file);
+      body.set("file", maxDimension ? await shrinkImage(file, maxDimension) : file);
       body.set("folder", folder);
       const res = await fetch("/api/admin/upload", { method: "POST", body });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };

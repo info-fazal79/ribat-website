@@ -42,6 +42,17 @@ const base = z.object({
   isFeatured: z.boolean(),
   metaTitle: z.string().max(70).optional(),
   metaDescription: z.string().max(160).optional(),
+  // Ordered image URLs from the Media Library: [0] is the featured image, the rest the gallery.
+  images: z
+    .array(
+      z
+        .string()
+        .trim()
+        .max(2000)
+        .regex(/^(https?:\/\/|\/)\S+$/, "Invalid image URL"),
+    )
+    .max(20, "Up to 20 images per product")
+    .default([]),
 });
 
 export const productFormSchema = z.discriminatedUnion("type", [

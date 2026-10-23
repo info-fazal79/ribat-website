@@ -29,6 +29,7 @@ export const adminNav = [
   { title: "Products", href: "/admin/products", icon: "Shirt" },
   { title: "Categories", href: "/admin/categories", icon: "FolderTree" },
   { title: "Inventory", href: "/admin/inventory", icon: "Boxes" },
+  { title: "Media", href: "/admin/media", icon: "Images" },
   { title: "Landing Pages", href: "/admin/landing-pages", icon: "PanelsTopLeft" },
   { title: "Coupons", href: "/admin/coupons", icon: "TicketPercent" },
   { title: "Customers", href: "/admin/customers", icon: "Users" },

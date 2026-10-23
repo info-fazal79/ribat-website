@@ -11,6 +11,7 @@ export const catalogTag = "catalog";
 
 const productInclude = {
   category: { select: { slug: true, name: true } },
+  images: { orderBy: { position: "asc" }, select: { url: true, alt: true } },
   variants: {
     where: { isActive: true },
     orderBy: { position: "asc" },
@@ -52,6 +53,7 @@ export function toCatalogProduct(p: ProductWithVariants): CatalogProduct {
     id: p.id,
     slug: p.slug,
     sku: variants[0]?.sku ?? "",
+    images: p.images,
     name: p.name,
     nameBn: p.nameBn,
     category: p.category,

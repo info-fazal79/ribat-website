@@ -42,6 +42,8 @@ export type CatalogProduct = {
   stock: number;
   isFeatured: boolean;
   createdAt: string;
+  /** Uploaded photos in display order; [0] is the featured image. Empty → placeholder art. */
+  images: { url: string; alt: string | null }[];
   /** Active variants only. */
   variants: CatalogVariant[];
 };

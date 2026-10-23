@@ -109,4 +109,6 @@ export type ProductEditData = {
     stock: number;
     isActive: boolean;
   }[];
+  /** Ordered image URLs; [0] is the featured image. */
+  images: string[];
 };

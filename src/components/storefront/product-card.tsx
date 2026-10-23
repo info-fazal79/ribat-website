@@ -34,7 +34,29 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
     <article className="group/card flex flex-col">
       <div className="group/art relative">
         <Link href={href} aria-label={product.name} className="block">
-          <ProductArt kind={product.art} color={sel.swatch.hex} className="aspect-[3/4] w-full" />
+          {product.images[0] ? (
+            <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element -- media library photos (DB-served or Supabase) */}
+              <img
+                src={product.images[0].url}
+                alt={product.images[0].alt ?? product.name}
+                loading="lazy"
+                className="size-full object-cover transition-transform duration-700 ease-out group-hover/art:scale-[1.04]"
+              />
+              {/* Second photo fades in on hover, like most fashion stores. */}
+              {product.images[1] && (
+                // eslint-disable-next-line @next/next/no-img-element -- media library photos
+                <img
+                  src={product.images[1].url}
+                  alt=""
+                  loading="lazy"
+                  className="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-500 group-hover/art:opacity-100"
+                />
+              )}
+            </div>
+          ) : (
+            <ProductArt kind={product.art} color={sel.swatch.hex} className="aspect-[3/4] w-full" />
+          )}
         </Link>
 
         <div className="pointer-events-none absolute top-3 left-3 flex flex-col items-start gap-1.5">

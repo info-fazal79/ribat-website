@@ -29,33 +29,37 @@ export function ProductPurchasePanel({ product }: { product: CatalogProduct }) {
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
-      <div className="flex flex-col-reverse gap-3 md:flex-row">
-        <div className="flex gap-3 md:flex-col">
-          {views.map((v, i) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(i)}
-              aria-label={`View ${i + 1}`}
-              className={cn("w-20 overflow-hidden border-2 transition", i === view ? "border-foreground" : "border-transparent")}
-            >
-              <div className={cn("transition-transform", v)}>
-                <ProductArt kind={product.art} color={sel.swatch.hex} className="aspect-[3/4] w-full" />
-              </div>
-            </button>
-          ))}
-        </div>
-        <div className="group/art relative flex-1 overflow-hidden">
-          <div className={cn("origin-center transition-transform duration-700", views[view])}>
-            <ProductArt kind={product.art} color={sel.swatch.hex} className="aspect-[3/4] w-full" />
+      {product.images.length > 0 ? (
+        <PhotoGallery images={product.images} name={product.name} discount={discount} />
+      ) : (
+        <div className="flex flex-col-reverse gap-3 md:flex-row">
+          <div className="flex gap-3 md:flex-col">
+            {views.map((v, i) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(i)}
+                aria-label={`View ${i + 1}`}
+                className={cn("w-20 overflow-hidden border-2 transition", i === view ? "border-foreground" : "border-transparent")}
+              >
+                <div className={cn("transition-transform", v)}>
+                  <ProductArt kind={product.art} color={sel.swatch.hex} className="aspect-[3/4] w-full" />
+                </div>
+              </button>
+            ))}
           </div>
-          {discount > 0 && (
-            <span className="absolute top-4 left-4 bg-primary px-3 py-1.5 text-xs font-semibold tracking-wider text-primary-foreground">
-              −{discount}% OFF
-            </span>
-          )}
+          <div className="group/art relative flex-1 overflow-hidden">
+            <div className={cn("origin-center transition-transform duration-700", views[view])}>
+              <ProductArt kind={product.art} color={sel.swatch.hex} className="aspect-[3/4] w-full" />
+            </div>
+            {discount > 0 && (
+              <span className="absolute top-4 left-4 bg-primary px-3 py-1.5 text-xs font-semibold tracking-wider text-primary-foreground">
+                −{discount}% OFF
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="space-y-7 lg:sticky lg:top-40 lg:self-start">
         <div className="space-y-3">
@@ -226,5 +230,52 @@ function Detail({ title, children }: { title: string; children: React.ReactNode 
       </summary>
       <div className="mt-3 space-y-1">{children}</div>
     </details>
+  );
+}
+
+/** Real product photos: featured image first; thumbnails switch the main image on click or hover. */
+function PhotoGallery({ images, name, discount }: { images: CatalogProduct["images"]; name: string; discount: number }) {
+  const [active, setActive] = useState(0);
+  const current = images[Math.min(active, images.length - 1)];
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="relative overflow-hidden bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element -- media library photos (DB-served or Supabase) */}
+        <img
+          key={current.url}
+          src={current.url}
+          alt={current.alt ?? name}
+          fetchPriority="high"
+          className="aspect-[3/4] w-full animate-in object-cover duration-300 fade-in"
+        />
+        {discount > 0 && (
+          <span className="absolute top-4 left-4 bg-primary px-3 py-1.5 text-xs font-semibold tracking-wider text-primary-foreground">
+            −{discount}% OFF
+          </span>
+        )}
+      </div>
+      {images.length > 1 && (
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {images.map((img, i) => (
+            <button
+              key={img.url}
+              type="button"
+              onClick={() => setActive(i)}
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
+              aria-label={`Show image ${i + 1} of ${images.length}`}
+              aria-current={i === active}
+              className={cn(
+                "w-20 shrink-0 overflow-hidden border-2 transition md:w-24",
+                i === active ? "border-foreground" : "border-transparent opacity-70 hover:opacity-100",
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- media library photos */}
+              <img src={img.url} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

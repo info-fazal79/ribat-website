@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { ArrowLeft, ImagePlus, Layers, Loader2, Package, Plus, Wand2, X } from "lucide-react";
+import { ArrowLeft, Layers, Loader2, Package, Plus, Wand2, X } from "lucide-react";
 import { toast } from "sonner";
 import { saveProduct } from "@/app/(admin)/admin/products/actions";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductArt } from "@/components/storefront/art";
+import { ProductImages } from "@/components/admin/products/product-images";
 import { ProductStatusBadge } from "@/components/admin/status-badge";
 import { categoryArt } from "@/config/category-art";
 import type { ProductEditData } from "@/lib/admin/types";
@@ -47,6 +48,7 @@ type FormState = {
   colors: Color[];
   sizes: string[];
   variantEdits: Record<string, VariantEdit>;
+  images: string[];
 };
 
 const SIZE_PRESETS = [
@@ -99,6 +101,7 @@ function initialState(product?: ProductEditData): FormState {
       colors: [],
       sizes: [],
       variantEdits: {},
+      images: [],
     };
   }
   // Existing variant values, keyed the same way the variant grid keys its rows ("Ivory|L").
@@ -138,6 +141,7 @@ function initialState(product?: ProductEditData): FormState {
     colors: product.type === "VARIABLE" ? product.colors : [],
     sizes: product.type === "VARIABLE" ? product.sizes : [],
     variantEdits,
+    images: product.images,
   };
 }
 
@@ -152,7 +156,6 @@ export function ProductForm({ product, categories }: { product?: ProductEditData
   const [slugTouched, setSlugTouched] = useState(Boolean(product));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
-  const [uploads, setUploads] = useState<string[]>([]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -201,6 +204,7 @@ export function ProductForm({ product, categories }: { product?: ProductEditData
       isFeatured: form.isFeatured,
       metaTitle: form.metaTitle || undefined,
       metaDescription: form.metaDescription || undefined,
+      images: form.images,
     };
     const payload =
       form.type === "SIMPLE"
@@ -337,49 +341,11 @@ export function ProductForm({ product, categories }: { product?: ProductEditData
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-sans text-base">Media</CardTitle>
-              <CardDescription>Uploads are previews only until image storage (Supabase Storage) is connected.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                {product &&
-                  product.colors.map((c) => (
-                    <ProductArt key={c.name} kind={product.art} color={c.hex} className="aspect-[3/4] rounded-md" />
-                  ))}
-                {uploads.map((src) => (
-                  <div key={src} className="group relative aspect-[3/4] overflow-hidden rounded-md border">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
-                    <img src={src} alt="" className="size-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setUploads((u) => u.filter((x) => x !== src))}
-                      className="absolute top-1 right-1 grid size-6 place-items-center rounded-full bg-background/90 opacity-0 transition group-hover:opacity-100"
-                      aria-label="Remove image"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                ))}
-                <label className="flex aspect-[3/4] cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed text-muted-foreground transition hover:border-primary hover:text-primary">
-                  <ImagePlus className="size-6" />
-                  <span className="text-xs">Add images</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="sr-only"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []);
-                      setUploads((u) => [...u, ...files.map((f) => URL.createObjectURL(f))]);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
-            </CardContent>
-          </Card>
+          <ProductImages
+            images={form.images}
+            onChange={(images) => set("images", images)}
+            error={Object.entries(errors).find(([k]) => k.startsWith("images"))?.[1]}
+          />
 
           {/* Product type */}
           <Card>
@@ -640,11 +606,16 @@ export function ProductForm({ product, categories }: { product?: ProductEditData
               <CardTitle className="font-sans text-base">Preview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <ProductArt
-                kind={categoryArt(form.category).kind}
-                color={form.colors[0]?.hex ?? categoryArt(form.category).productColor}
-                className="aspect-[3/4] rounded-md"
-              />
+              {form.images[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element -- media library asset
+                <img src={form.images[0]} alt="" className="aspect-[3/4] w-full rounded-md object-cover" />
+              ) : (
+                <ProductArt
+                  kind={categoryArt(form.category).kind}
+                  color={form.colors[0]?.hex ?? categoryArt(form.category).productColor}
+                  className="aspect-[3/4] rounded-md"
+                />
+              )}
               <div>
                 <p className="text-sm font-medium">{form.name || "Product name"}</p>
                 <p className="text-sm">
