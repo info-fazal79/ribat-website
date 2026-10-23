@@ -2,11 +2,21 @@ import { z } from "zod";
 
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Use a hex colour like #123e31");
 
-/** Absolute http(s) URL or site-relative path; empty string means "not set". */
+/**
+ * Absolute http(s) URL, site-relative path, or an embedded base64 image (upload fallback
+ * when Supabase Storage isn't configured); empty string means "not set".
+ */
 const assetUrl = z
   .string()
   .trim()
-  .refine((v) => v === "" || /^(https?:\/\/|\/)\S+$/.test(v), "Enter a full https:// URL or a /path")
+  .max(1_500_000, "Image is too large — max 1 MB")
+  .refine(
+    (v) =>
+      v === "" ||
+      /^(https?:\/\/|\/)\S+$/.test(v) ||
+      /^data:image\/(png|jpeg|webp|svg\+xml|x-icon);base64,[A-Za-z0-9+/]+=*$/.test(v),
+    "Enter a full https:// URL or a /path",
+  )
   .default("");
 
 export const defaultAnnouncements = [

@@ -79,8 +79,10 @@ export function ImageUpload({
             />
           </div>
           <div className="min-w-0 flex-1 space-y-2">
-            <p className="truncate text-xs text-muted-foreground" title={value}>
-              {value.split("/").pop()}
+            <p className="truncate text-xs text-muted-foreground" title={value.startsWith("data:") ? undefined : value}>
+              {value.startsWith("data:")
+                ? `Embedded image · ${Math.max(1, Math.round((value.length * 0.75) / 1024))} KB`
+                : value.split("/").pop()}
             </p>
             {dims && dims.w > 0 && (
               <p className="text-xs font-medium tabular-nums">
@@ -131,7 +133,7 @@ export function ImageUpload({
               </>
             )}
           </span>
-          <span className="text-xs text-muted-foreground">PNG, JPG, SVG, WEBP or ICO · max 2 MB</span>
+          <span className="text-xs text-muted-foreground">PNG, JPG, SVG, WEBP or ICO · max 1 MB</span>
         </button>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
