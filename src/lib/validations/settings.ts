@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { footerSetting, homeSectionsSetting } from "@/lib/validations/homepage";
 
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Use a hex colour like #123e31");
 
@@ -252,6 +253,8 @@ export const settingSchemas = {
   header_menu: z.object({
     items: z.array(menuItem).max(12).default(defaultMenu),
   }),
+  home_sections: homeSectionsSetting,
+  footer_settings: footerSetting,
   header_layout: z.object({
     layout: z.enum(headerLayouts).default("layout_1_centered"),
   }),

@@ -13,6 +13,8 @@ const appearanceInput = z.object({
   headerMenu: settingSchemas.header_menu,
   hero: settingSchemas.hero_slides,
   headerLayout: settingSchemas.header_layout,
+  homeSections: settingSchemas.home_sections,
+  footer: settingSchemas.footer_settings,
 });
 
 export type SaveAppearanceResult = { ok: true } | { ok: false; message: string; fieldErrors: Record<string, string> };
@@ -25,7 +27,7 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
     for (const issue of parsed.error.issues) fieldErrors[issue.path.join(".")] ??= issue.message;
     return { ok: false, message: Object.values(fieldErrors)[0] ?? "Please fix the highlighted fields.", fieldErrors };
   }
-  const { branding, announcement, headerMenu, hero, headerLayout } = parsed.data;
+  const { branding, announcement, headerMenu, hero, headerLayout, homeSections, footer } = parsed.data;
   if (branding.logoType === "image" && !branding.logoUrl) {
     return { ok: false, message: "Add a logo image URL or switch to Text logo.", fieldErrors: { "branding.logoUrl": "Required for an image logo" } };
   }
@@ -51,6 +53,16 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
       where: { key: "header_layout" },
       update: { value: headerLayout },
       create: { key: "header_layout", value: headerLayout },
+    }),
+    db.setting.upsert({
+      where: { key: "home_sections" },
+      update: { value: homeSections },
+      create: { key: "home_sections", value: homeSections },
+    }),
+    db.setting.upsert({
+      where: { key: "footer_settings" },
+      update: { value: footer },
+      create: { key: "footer_settings", value: footer },
     }),
   ]);
 

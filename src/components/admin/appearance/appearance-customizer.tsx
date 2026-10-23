@@ -6,8 +6,10 @@ import { ImageIcon, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { saveAppearance } from "@/app/(admin)/admin/appearance/actions";
 import { ColorInput } from "@/components/admin/appearance/controls";
+import { FooterEditor } from "@/components/admin/appearance/footer-editor";
 import { HeaderLayoutPicker } from "@/components/admin/appearance/header-layout-picker";
 import { HeroEditor } from "@/components/admin/appearance/hero-editor";
+import { HomepageEditor } from "@/components/admin/appearance/homepage-editor";
 import { MenuEditor, type QuickAddCategory } from "@/components/admin/appearance/menu-editor";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Field, ListEditor, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
@@ -25,7 +27,17 @@ type Announcement = SettingValue<"appearance.announcement">;
 type HeaderMenu = SettingValue<"header_menu">;
 type Hero = SettingValue<"hero_slides">;
 type HeaderLayoutSetting = SettingValue<"header_layout">;
-type Draft = { branding: Branding; announcement: Announcement; headerMenu: HeaderMenu; hero: Hero; headerLayout: HeaderLayoutSetting };
+type HomeSections = SettingValue<"home_sections">;
+type Footer = SettingValue<"footer_settings">;
+type Draft = {
+  branding: Branding;
+  announcement: Announcement;
+  headerMenu: HeaderMenu;
+  hero: Hero;
+  headerLayout: HeaderLayoutSetting;
+  homeSections: HomeSections;
+  footer: Footer;
+};
 
 const DEFAULT_COLORS = { backgroundColor: "#123e31", textColor: "#d4af37" };
 
@@ -86,8 +98,10 @@ export function AppearanceCustomizer({
           <TabsTrigger value="branding">Branding & Logo</TabsTrigger>
           <TabsTrigger value="header">Header Layout</TabsTrigger>
           <TabsTrigger value="hero">Hero Slider</TabsTrigger>
+          <TabsTrigger value="homepage">Homepage Sections</TabsTrigger>
           <TabsTrigger value="announcement">Top Announcement Bar</TabsTrigger>
           <TabsTrigger value="menus">Navigation & Menus</TabsTrigger>
+          <TabsTrigger value="footer">Footer</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="min-w-0 space-y-6 rounded-xl border bg-card p-6">
@@ -258,6 +272,19 @@ export function AppearanceCustomizer({
 
         <TabsContent value="hero" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
           <HeroEditor value={draft.hero} products={products} errors={errors} onChange={(hero) => setDraft((d) => ({ ...d, hero }))} />
+        </TabsContent>
+
+        <TabsContent value="homepage" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
+          <HomepageEditor
+            value={draft.homeSections}
+            categories={categories}
+            errors={errors}
+            onChange={(homeSections) => setDraft((d) => ({ ...d, homeSections }))}
+          />
+        </TabsContent>
+
+        <TabsContent value="footer" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
+          <FooterEditor value={draft.footer} errors={errors} onChange={(footer) => setDraft((d) => ({ ...d, footer }))} />
         </TabsContent>
 
         <TabsContent value="header" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">

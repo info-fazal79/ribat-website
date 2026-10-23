@@ -2,10 +2,11 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { EditorialArt } from "@/components/storefront/art";
 import { SectionHeading } from "@/components/storefront/home/section-heading";
-import { getCategories } from "@/server/services/catalog";
+import type { CatalogCategory } from "@/lib/catalog/types";
+import type { HomeSectionOf } from "@/lib/validations/homepage";
 import { cn } from "@/lib/utils";
 
-// Bento layout on desktop: Panjabi hero tile + four supporting tiles.
+// Bento layout on desktop: hero tile + four supporting tiles.
 const layout = [
   "md:col-span-2 md:row-span-2",
   "md:col-span-1 md:row-span-1",
@@ -14,22 +15,29 @@ const layout = [
   "md:col-span-1 md:row-span-1",
 ];
 
-export async function CategoryGrid() {
-  // Bento layout fits five tiles; extra categories are reachable from the nav and Shop All.
-  const categories = (await getCategories()).slice(0, 5);
+export function CategoryGrid({ section, categories: all }: { section: HomeSectionOf<"categories">; categories: CatalogCategory[] }) {
+  // Chosen tiles in admin order (skipping categories that no longer exist); none chosen = first five.
+  const tiles = section.items.length
+    ? section.items.flatMap((item) => {
+        const category = all.find((c) => c.slug === item.slug);
+        return category ? [{ category, imageUrl: item.imageUrl }] : [];
+      })
+    : all.slice(0, 5).map((category) => ({ category, imageUrl: "" }));
+  if (tiles.length === 0) return null;
+
   return (
     <section className="container mx-auto px-4 py-20 md:py-28">
       <SectionHeading
-        eyebrow="Shop by Category"
-        title="Curated for every occasion"
-        titleBn="আপনার পছন্দের ক্যাটাগরি"
-        href="/products"
-        linkLabel="Shop all"
+        eyebrow={section.eyebrow}
+        title={section.title}
+        titleBn={section.titleBn || undefined}
+        href={section.linkUrl || undefined}
+        linkLabel={section.linkLabel || undefined}
       />
       <div className="grid auto-rows-[220px] grid-cols-2 gap-3 md:auto-rows-[260px] md:grid-cols-4 md:gap-4">
-        {categories.map((category, i) => {
-          // Light-toned tiles (thobe, casual) need dark text.
-          const light = category.art !== "thobe" && category.art !== "casual";
+        {tiles.map(({ category, imageUrl }, i) => {
+          // Photos and dark-toned art get light text; light-toned art (thobe, casual) needs dark text.
+          const light = Boolean(imageUrl) || (category.art !== "thobe" && category.art !== "casual");
           return (
             <Link
               key={category.slug}
@@ -40,7 +48,16 @@ export async function CategoryGrid() {
                 layout[i],
               )}
             >
-              <EditorialArt kind={category.art} tone={category.tone} />
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- media library asset
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+              ) : (
+                <EditorialArt kind={category.art} tone={category.tone} />
+              )}
               <div
                 className={cn(
                   "absolute inset-0 bg-gradient-to-t via-transparent to-transparent",
