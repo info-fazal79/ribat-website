@@ -10,7 +10,7 @@ export function EditorialBanner({ section }: { section: HomeSectionOf<"promo"> }
     <section className="container mx-auto px-4">
       <div className="relative grid overflow-hidden bg-[linear-gradient(135deg,#1f3b33,#0b1a16)] text-[#f6f1e7] md:grid-cols-2">
         <GeometricPattern color="#d8c08a" opacity={0.16} />
-        <div className="relative z-10 flex flex-col justify-center gap-5 p-10 md:p-16">
+        <div className={cn("relative z-10 flex flex-col justify-center gap-5 p-10 md:p-16", section.imagePosition === "left" && "md:order-2")}>
           {section.eyebrow && <p className="text-[11px] font-medium tracking-[0.35em] text-[#d8c08a] uppercase">{section.eyebrow}</p>}
           <h2 className="text-4xl leading-tight font-medium md:text-6xl">
             {lines.map((line, i) => (

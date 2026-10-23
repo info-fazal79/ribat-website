@@ -1,18 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
-  ChevronDown,
+  GalleryHorizontal,
   Images,
   LayoutGrid,
   Megaphone,
   MessageSquareQuote,
-  Plus,
   ShieldCheck,
   ShoppingBag,
-  Trash2,
+  Type,
   type LucideIcon,
 } from "lucide-react";
 import { Segmented, Switch } from "@/components/admin/appearance/controls";
@@ -21,191 +17,56 @@ import { MediaField } from "@/components/admin/media/media-field";
 import { valuePropIconMap } from "@/components/storefront/home/home-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import {
-  newProductsSection,
-  valuePropIcons,
-  type HomeSection,
-  type HomeSectionOf,
-  type HomeSectionType,
-} from "@/lib/validations/homepage";
-import type { SettingValue } from "@/lib/validations/settings";
+import { productSources, valuePropIcons, type HomeSection, type HomeSectionOf, type HomeSectionType } from "@/lib/validations/homepage";
 
-type HomeSettings = SettingValue<"home_sections">;
-type Category = { slug: string; name: string; nameBn: string | null };
+export type BuilderCategory = { slug: string; name: string; nameBn: string | null };
+type Category = BuilderCategory;
 type Err = (path: string) => string | undefined;
 
-const SECTION_META: Record<HomeSectionType, { label: string; icon: LucideIcon }> = {
-  valueProps: { label: "Trust Badges", icon: ShieldCheck },
-  categories: { label: "Category Showcase", icon: LayoutGrid },
-  promo: { label: "Promo Banner", icon: Megaphone },
-  products: { label: "Product Grid", icon: ShoppingBag },
-  testimonials: { label: "Customer Reviews", icon: MessageSquareQuote },
-  community: { label: "Community Grid", icon: Images },
+/** Widget catalogue for the builder: label, icon and "Add section" description per type. */
+export const SECTION_META: Record<HomeSectionType, { label: string; icon: LucideIcon; description: string }> = {
+  products: { label: "Product Grid", icon: ShoppingBag, description: "Products in 3–6 columns with tabs, load more or pagination" },
+  productCarousel: { label: "Product Slider", icon: GalleryHorizontal, description: "Swipeable row of products with optional autoplay" },
+  categories: { label: "Category Showcase", icon: LayoutGrid, description: "Bento grid or cards of chosen categories" },
+  promo: { label: "Promo Banner", icon: Megaphone, description: "Story banner with image, headline and button" },
+  valueProps: { label: "Trust Badges", icon: ShieldCheck, description: "Free delivery, exchange, COD and other promises" },
+  testimonials: { label: "Customer Reviews", icon: MessageSquareQuote, description: "Rated testimonials in a carousel" },
+  community: { label: "Community Grid", icon: Images, description: "“Worn by our community” image tiles" },
+  richText: { label: "Rich Text", icon: Type, description: "Heading, paragraphs and a button" },
 };
 
-const summary = (s: HomeSection) => {
+const SOURCE_LABEL: Record<(typeof productSources)[number], string> = {
+  featured: "featured",
+  trending: "trending",
+  all: "all products",
+  category: "category",
+};
+
+/** One-line description of a section's content for the section tree. */
+export function sectionSummary(s: HomeSection): string {
   switch (s.type) {
     case "valueProps":
       return `${s.items.filter((i) => i.active).length} active badges`;
     case "categories":
-      return s.items.length ? `${s.items.length} chosen categories` : "First five categories";
+      return `${s.layout === "cards" ? "Cards" : "Bento"} · ${s.items.length ? `${s.items.length} chosen` : "first categories"}`;
     case "promo":
       return s.title.replace(/\n/g, " ");
     case "products":
-      return `${s.title || "Untitled"} · ${s.source === "category" ? s.categorySlug || "no category" : s.source} · ${s.columns} per row`;
+    case "productCarousel": {
+      const source = s.source === "category" ? s.categorySlug || "no category" : SOURCE_LABEL[s.source];
+      const layout = s.type === "products" ? `${s.columns} per row` : `${s.perView} in view`;
+      return `${s.title || "Untitled"} · ${source} · ${layout}`;
+    }
     case "testimonials":
       return `${s.items.filter((i) => i.active).length} active reviews`;
     case "community":
       return `${s.handle || "No handle"} · ${s.items.length} tiles`;
+    case "richText":
+      return s.title || s.body.slice(0, 60) || "Empty";
   }
-};
-
-/** Appearance → Homepage: ordered, toggleable homepage sections below the hero slider. */
-export function HomepageEditor({
-  value,
-  categories,
-  errors,
-  onChange,
-}: {
-  value: HomeSettings;
-  categories: Category[];
-  errors: Record<string, string>;
-  onChange: (value: HomeSettings) => void;
-}) {
-  const { sections } = value;
-  const [open, setOpen] = useState<Set<string>>(() => new Set());
-  const setSections = (next: HomeSection[]) => onChange({ sections: next });
-  const update = (id: string, next: HomeSection) => setSections(sections.map((s) => (s.id === id ? next : s)));
-  const move = (from: number, to: number) => {
-    if (to < 0 || to >= sections.length) return;
-    const next = [...sections];
-    const [s] = next.splice(from, 1);
-    next.splice(to, 0, s);
-    setSections(next);
-  };
-  const toggle = (id: string) =>
-    setOpen((o) => {
-      const next = new Set(o);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  // Open sections whose fields failed validation (adjusted during render when errors change).
-  const [seenErrors, setSeenErrors] = useState(errors);
-  if (errors !== seenErrors) {
-    setSeenErrors(errors);
-    const failing = Object.keys(errors)
-      .map((k) => k.match(/^homeSections\.sections\.(\d+)\./)?.[1])
-      .filter((i): i is string => i !== undefined)
-      .map((i) => sections[Number(i)]?.id)
-      .filter((id): id is string => !!id);
-    if (failing.length) setOpen((o) => new Set([...o, ...failing]));
-  }
-
-  return (
-    <div className="min-w-0 space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold">Homepage sections</h3>
-          <p className="text-xs text-muted-foreground">
-            Shown below the hero slider in this order. Switch a section off to hide it; nothing is lost.
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          disabled={sections.length >= 20}
-          onClick={() => {
-            const section = newProductsSection({ eyebrow: "Collection", title: "New product grid", titleBn: "", tabs: false });
-            setSections([...sections, section]);
-            setOpen((o) => new Set(o).add(section.id));
-          }}
-        >
-          <Plus /> Add product grid
-        </Button>
-      </div>
-
-      <ul className="space-y-2">
-        {sections.map((section, i) => {
-          const { label, icon: Icon } = SECTION_META[section.type];
-          const isOpen = open.has(section.id);
-          const prefix = `homeSections.sections.${i}.`;
-          const err: Err = (path) => errors[prefix + path];
-          const hasError = Object.keys(errors).some((k) => k.startsWith(prefix));
-          return (
-            <li
-              key={section.id}
-              className={cn(
-                "min-w-0 overflow-hidden rounded-lg border bg-background",
-                isOpen && "shadow-sm ring-1 ring-primary/15",
-                hasError && "border-destructive",
-              )}
-            >
-              <div className="flex items-center gap-1 pr-2">
-                <button
-                  type="button"
-                  onClick={() => toggle(section.id)}
-                  aria-expanded={isOpen}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3 text-left"
-                >
-                  <span className={cn("grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary", !section.enabled && "opacity-40")}>
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={cn("block truncate text-sm font-medium", !section.enabled && "text-muted-foreground")}>{label}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{summary(section)}</span>
-                  </span>
-                  <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
-                </button>
-                <div className="shrink-0 border-l pl-2">
-                  <Switch
-                    checked={section.enabled}
-                    onChange={(enabled) => update(section.id, { ...section, enabled })}
-                    label={section.enabled ? "On" : "Off"}
-                  />
-                </div>
-                <Button type="button" variant="ghost" size="icon-xs" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up">
-                  <ArrowUp />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => move(i, i + 1)}
-                  disabled={i === sections.length - 1}
-                  aria-label="Move down"
-                >
-                  <ArrowDown />
-                </Button>
-                {section.type === "products" && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    className="text-muted-foreground hover:text-destructive"
-                    onClick={() => setSections(sections.filter((s) => s.id !== section.id))}
-                    aria-label="Delete product grid"
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
-              </div>
-              {isOpen && (
-                <div className="space-y-4 border-t bg-muted/20 p-4">
-                  <SectionEditor section={section} categories={categories} err={err} onChange={(next) => update(section.id, next)} />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
 }
 
-function SectionEditor({
+export function SectionEditor({
   section,
   categories,
   err,
@@ -229,6 +90,10 @@ function SectionEditor({
       return <TestimonialsEditor section={section} err={err} onChange={onChange} />;
     case "community":
       return <CommunityEditor section={section} err={err} onChange={onChange} />;
+    case "productCarousel":
+      return <ProductCarouselEditor section={section} categories={categories} err={err} onChange={onChange} />;
+    case "richText":
+      return <RichTextEditor section={section} err={err} onChange={onChange} />;
   }
 }
 
@@ -258,7 +123,7 @@ function ValuePropsEditor({ section, err, onChange }: EditorProps<"valueProps">)
       items={section.items}
       max={6}
       addLabel="Add badge"
-      create={() => ({ id: Math.random().toString(36).slice(2, 10), icon: "gem" as const, title: "", body: "", bn: "", active: true })}
+      create={() => ({ id: Math.random().toString(36).slice(2, 10), icon: "gem" as const, iconUrl: "", title: "", body: "", bn: "", active: true })}
       onChange={(items) => onChange({ ...section, items })}
       render={(item, update, i) => {
         const Icon = valuePropIconMap[item.icon];
@@ -289,6 +154,9 @@ function ValuePropsEditor({ section, err, onChange }: EditorProps<"valueProps">)
               <TextInput label="Subtitle" value={item.body} onChange={(body) => update({ body })} />
               <TextInput label="Bengali line" bengali value={item.bn} onChange={(bn) => update({ bn })} />
             </div>
+            <Field label="Custom icon image (optional)" hint="An SVG or PNG from the Media Library replaces the icon above." error={err(`items.${i}.iconUrl`)}>
+              <MediaField value={item.iconUrl} onChange={(iconUrl) => update({ iconUrl })} previewClassName="h-16 sm:w-16" />
+            </Field>
             <Toggle label="Show this badge" checked={item.active} onChange={(active) => update({ active })} />
           </>
         );
@@ -306,10 +174,26 @@ function CategoriesEditor({ section, categories, err, onChange }: EditorProps<"c
         <TextInput label="Link label" value={section.linkLabel} placeholder="Shop all" onChange={(linkLabel) => set({ linkLabel })} />
         <TextInput label="Link URL" value={section.linkUrl} placeholder="/products" error={err("linkUrl")} onChange={(linkUrl) => set({ linkUrl })} />
       </div>
-      <Field label="Category tiles" hint="Up to five, in order — the first is the large tile. Leave empty to show the first five categories.">
+      <Segmented
+        label="Layout"
+        value={section.layout}
+        options={[
+          { value: "bento", label: "Bento grid (5)" },
+          { value: "cards", label: "Cards (up to 8)" },
+        ]}
+        onChange={(layout) => set({ layout })}
+      />
+      <Field
+        label="Category tiles"
+        hint={
+          section.layout === "bento"
+            ? "Up to five, in order — the first is the large tile. Empty = the first five categories."
+            : "Up to eight, in order. Empty = the first eight categories."
+        }
+      >
         <ListEditor
           items={section.items}
-          max={5}
+          max={section.layout === "bento" ? 5 : 8}
           addLabel="Add category tile"
           create={() => ({ slug: categories.find((c) => !section.items.some((it) => it.slug === c.slug))?.slug ?? "", imageUrl: "" })}
           onChange={(items) => set({ items })}
@@ -326,7 +210,7 @@ function CategoriesEditor({ section, categories, err, onChange }: EditorProps<"c
                   ))}
                 </select>
               </Field>
-              <Field label="Tile image (optional)" hint="Leave empty for the built-in illustrated tile." error={err(`items.${i}.imageUrl`)}>
+              <Field label="Tile image (optional)" hint="Empty = the category's own image, else the illustrated tile." error={err(`items.${i}.imageUrl`)}>
                 <MediaField value={item.imageUrl} onChange={(imageUrl) => update({ imageUrl })} previewClassName="h-24 sm:w-24" />
               </Field>
             </>
@@ -356,6 +240,15 @@ function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
         <Field label="Image in the arch (optional)" hint="Leave empty for the drawn garment." error={err("imageUrl")} className="min-w-64 flex-1">
           <MediaField value={section.imageUrl} onChange={(imageUrl) => set({ imageUrl })} previewClassName="h-28 sm:w-24" />
         </Field>
+        <Segmented
+          label="Image side"
+          value={section.imagePosition}
+          options={[
+            { value: "right", label: "Right" },
+            { value: "left", label: "Left" },
+          ]}
+          onChange={(imagePosition) => set({ imagePosition })}
+        />
         {section.imageUrl && (
           <Segmented
             label="Fit"
@@ -378,43 +271,19 @@ function ProductsEditor({ section, categories, err, onChange }: EditorProps<"pro
     <>
       <HeadingFields value={section} onChange={set} err={err} />
       <div className="flex flex-wrap items-end gap-6">
-        <Segmented
-          label="Products"
-          value={section.source}
-          options={[
-            { value: "featured", label: "Featured / trending" },
-            { value: "all", label: "All products" },
-            { value: "category", label: "One category" },
-          ]}
-          onChange={(source) => set({ source })}
-        />
-        {section.source === "category" && (
-          <Field label="Category" error={err("categorySlug")}>
-            <select
-              value={section.categorySlug}
-              onChange={(e) => set({ categorySlug: e.target.value })}
-              className="h-8 w-48 rounded-md border bg-background px-2 text-sm"
-            >
-              <option value="">Choose…</option>
-              {categories.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
+        <SourcePicker section={section} categories={categories} err={err} onChange={set} />
       </div>
       <div className="flex flex-wrap items-end gap-6">
         <Segmented
           label="Per row (desktop)"
-          value={String(section.columns) as "4" | "5" | "6"}
+          value={String(section.columns) as "3" | "4" | "5" | "6"}
           options={[
+            { value: "3", label: "3" },
             { value: "4", label: "4" },
             { value: "5", label: "5" },
             { value: "6", label: "6" },
           ]}
-          onChange={(v) => set({ columns: Number(v) as 4 | 5 | 6 })}
+          onChange={(v) => set({ columns: Number(v) as 3 | 4 | 5 | 6 })}
         />
         <Field label="Products shown" hint="Initially, and per page / per “load more”." error={err("limit")}>
           <Input
@@ -543,6 +412,131 @@ function CommunityEditor({ section, err, onChange }: EditorProps<"community">) {
           )}
         />
       </Field>
+    </>
+  );
+}
+
+/** Product data source: featured / trending / all / one category. */
+function SourcePicker({
+  section,
+  categories,
+  err,
+  onChange,
+}: {
+  section: HomeSectionOf<"products"> | HomeSectionOf<"productCarousel">;
+  categories: Category[];
+  err: Err;
+  onChange: (patch: { source?: (typeof productSources)[number]; categorySlug?: string }) => void;
+}) {
+  return (
+    <>
+      <Segmented
+        label="Products"
+        value={section.source}
+        options={[
+          { value: "featured", label: "Featured" },
+          { value: "trending", label: "Trending" },
+          { value: "all", label: "All" },
+          { value: "category", label: "Category" },
+        ]}
+        onChange={(source) => onChange({ source })}
+      />
+      {section.source === "category" && (
+        <Field label="Category" error={err("categorySlug")}>
+          <select
+            value={section.categorySlug}
+            onChange={(e) => onChange({ categorySlug: e.target.value })}
+            className="h-8 w-48 rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">Choose…</option>
+            {categories.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+    </>
+  );
+}
+
+function ProductCarouselEditor({ section, categories, err, onChange }: EditorProps<"productCarousel"> & { categories: Category[] }) {
+  const set = (patch: Partial<typeof section>) => onChange({ ...section, ...patch });
+  return (
+    <>
+      <HeadingFields value={section} onChange={set} err={err} />
+      <div className="flex flex-wrap items-end gap-6">
+        <SourcePicker section={section} categories={categories} err={err} onChange={set} />
+      </div>
+      <div className="flex flex-wrap items-end gap-6">
+        <Segmented
+          label="Cards in view (desktop)"
+          value={String(section.perView) as "2" | "3" | "4" | "5" | "6"}
+          options={(["2", "3", "4", "5", "6"] as const).map((v) => ({ value: v, label: v }))}
+          onChange={(v) => set({ perView: Number(v) })}
+        />
+        <Field label="Products in slider" error={err("limit")}>
+          <Input type="number" min={3} max={24} value={section.limit} onChange={(e) => set({ limit: Number(e.target.value) })} className="w-24" />
+        </Field>
+      </div>
+      <div className="flex flex-wrap items-end gap-6">
+        <Switch checked={section.autoplay} onChange={(autoplay) => set({ autoplay })} label="Autoplay" description="Pauses on hover and touch." />
+        <Field label="Seconds per step" error={err("interval")}>
+          <Input
+            type="number"
+            min={2}
+            max={15}
+            step={0.5}
+            disabled={!section.autoplay}
+            value={section.interval}
+            onChange={(e) => set({ interval: Number(e.target.value) })}
+            className="w-24"
+          />
+        </Field>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <TextInput label="Link label" value={section.viewAllLabel} placeholder="View all" onChange={(viewAllLabel) => set({ viewAllLabel })} />
+        <TextInput label="Link URL" value={section.viewAllUrl} placeholder="/products" error={err("viewAllUrl")} onChange={(viewAllUrl) => set({ viewAllUrl })} />
+      </div>
+    </>
+  );
+}
+
+function RichTextEditor({ section, err, onChange }: EditorProps<"richText">) {
+  const set = (patch: Partial<typeof section>) => onChange({ ...section, ...patch });
+  return (
+    <>
+      <div className="grid gap-3 md:grid-cols-2">
+        <TextInput label="Small label (eyebrow)" value={section.eyebrow} onChange={(eyebrow) => set({ eyebrow })} />
+        <TextInput label="Heading" value={section.title} error={err("title")} onChange={(title) => set({ title })} />
+      </div>
+      <TextArea label="Text (blank line = new paragraph)" rows={5} value={section.body} error={err("body")} onChange={(body) => set({ body })} />
+      <div className="grid gap-3 md:grid-cols-2">
+        <TextInput label="Button label" value={section.buttonLabel} onChange={(buttonLabel) => set({ buttonLabel })} />
+        <TextInput label="Button link" value={section.buttonUrl} placeholder="/products" error={err("buttonUrl")} onChange={(buttonUrl) => set({ buttonUrl })} />
+      </div>
+      <div className="flex flex-wrap items-end gap-6">
+        <Segmented
+          label="Alignment"
+          value={section.align}
+          options={[
+            { value: "center", label: "Centre" },
+            { value: "left", label: "Left" },
+          ]}
+          onChange={(align) => set({ align })}
+        />
+        <Segmented
+          label="Background"
+          value={section.background}
+          options={[
+            { value: "cream", label: "Cream" },
+            { value: "plain", label: "Plain" },
+            { value: "emerald", label: "Emerald" },
+          ]}
+          onChange={(background) => set({ background })}
+        />
+      </div>
     </>
   );
 }

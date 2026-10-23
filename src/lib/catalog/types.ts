@@ -53,6 +53,9 @@ export type CatalogCategory = {
   name: string;
   nameBn: string | null;
   description: string | null;
+  /** Admin-uploaded tile image and wide page banner; null = illustrated art. */
+  imageUrl: string | null;
+  bannerUrl: string | null;
   productCount: number;
   art: ArtKind;
   tone: { from: string; to: string; ink: string };

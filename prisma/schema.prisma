@@ -200,8 +200,9 @@ model Category {
   nameBn      String?    // Bengali display name
   description String?
   imageUrl    String?
+  bannerUrl   String?    // wide banner for the category page
   parentId    String?
-  position    Int        @default(0)
+  position    Int        @default(0) // display order
   isActive    Boolean    @default(true)
 
   parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
@@ -306,6 +307,21 @@ model Media {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+/// Homepage section managed by the Homepage Builder (Admin → Appearance). `config` holds the
+/// widget settings validated by src/lib/validations/homepage.ts; `type` is e.g. "PRODUCT_GRID".
+model HomeSection {
+  id        String   @id @default(cuid())
+  type      String
+  title     String?
+  order     Int      @default(0)
+  isEnabled Boolean  @default(true)
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
 }
 
 /// Product photos in display order: position 0 is the featured image, the rest form the gallery.

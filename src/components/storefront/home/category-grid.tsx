@@ -16,13 +16,18 @@ const layout = [
 ];
 
 export function CategoryGrid({ section, categories: all }: { section: HomeSectionOf<"categories">; categories: CatalogCategory[] }) {
-  // Chosen tiles in admin order (skipping categories that no longer exist); none chosen = first five.
-  const tiles = section.items.length
-    ? section.items.flatMap((item) => {
-        const category = all.find((c) => c.slug === item.slug);
-        return category ? [{ category, imageUrl: item.imageUrl }] : [];
-      })
-    : all.slice(0, 5).map((category) => ({ category, imageUrl: "" }));
+  const cards = section.layout === "cards";
+  const max = cards ? 8 : 5;
+  // Chosen tiles in admin order (skipping categories that no longer exist); none chosen = the first few.
+  // Image: tile override → the category's own image → illustrated art.
+  const tiles = (
+    section.items.length
+      ? section.items.flatMap((item) => {
+          const category = all.find((c) => c.slug === item.slug);
+          return category ? [{ category, imageUrl: item.imageUrl || category.imageUrl || "" }] : [];
+        })
+      : all.map((category) => ({ category, imageUrl: category.imageUrl ?? "" }))
+  ).slice(0, max);
   if (tiles.length === 0) return null;
 
   return (
@@ -34,7 +39,12 @@ export function CategoryGrid({ section, categories: all }: { section: HomeSectio
         href={section.linkUrl || undefined}
         linkLabel={section.linkLabel || undefined}
       />
-      <div className="grid auto-rows-[220px] grid-cols-2 gap-3 md:auto-rows-[260px] md:grid-cols-4 md:gap-4">
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-3 md:gap-4",
+          cards ? "md:grid-cols-4" : "auto-rows-[220px] md:auto-rows-[260px] md:grid-cols-4",
+        )}
+      >
         {tiles.map(({ category, imageUrl }, i) => {
           // Photos and dark-toned art get light text; light-toned art (thobe, casual) needs dark text.
           const light = Boolean(imageUrl) || (category.art !== "thobe" && category.art !== "casual");
@@ -44,8 +54,7 @@ export function CategoryGrid({ section, categories: all }: { section: HomeSectio
               href={`/categories/${category.slug}`}
               className={cn(
                 "group relative overflow-hidden",
-                i === 0 ? "col-span-2 row-span-2" : "col-span-1",
-                layout[i],
+                cards ? "aspect-[3/4]" : [i === 0 ? "col-span-2 row-span-2" : "col-span-1", layout[i]],
               )}
             >
               {imageUrl ? (
@@ -72,7 +81,7 @@ export function CategoryGrid({ section, categories: all }: { section: HomeSectio
               >
                 <div>
                   <p className="font-bengali text-xs opacity-80">{category.nameBn}</p>
-                  <h3 className={cn("font-heading font-medium", i === 0 ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl")}>
+                  <h3 className={cn("font-heading font-medium", i === 0 && !cards ? "text-4xl md:text-5xl" : "text-2xl md:text-3xl")}>
                     {category.name}
                   </h3>
                   <p className="mt-1 hidden text-xs opacity-80 sm:block">

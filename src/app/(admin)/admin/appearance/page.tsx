@@ -26,13 +26,12 @@ export default function AdminAppearancePage() {
 
 async function AppearanceContent() {
   await requireAdmin();
-  const [branding, announcement, headerMenu, hero, headerLayout, homeSections, footer, categories, products] = await Promise.all([
+  const [branding, announcement, headerMenu, hero, headerLayout, footer, categories, products] = await Promise.all([
     getSetting("appearance.branding"),
     getSetting("appearance.announcement"),
     getSetting("header_menu"),
     getSetting("hero_slides"),
     getSetting("header_layout"),
-    getSetting("home_sections"),
     getSetting("footer_settings"),
     getCategories(),
     getActiveProducts(),
@@ -44,7 +43,6 @@ async function AppearanceContent() {
       headerMenu={headerMenu}
       hero={hero}
       headerLayout={headerLayout}
-      homeSections={homeSections}
       footer={footer}
       categories={categories.map(({ slug, name, nameBn }) => ({ slug, name, nameBn }))}
       products={products.map(toHeroProduct)}

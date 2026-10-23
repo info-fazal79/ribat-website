@@ -57,6 +57,8 @@ const valuePropsSection = z.object({
       z.object({
         id,
         icon: z.enum(valuePropIcons).default("gem"),
+        /** Optional uploaded icon (SVG/PNG from the Media Library); replaces the built-in icon. */
+        iconUrl: image,
         title: z.string().trim().min(1, "Add a title").max(60),
         body: short(120),
         bn: short(120),
@@ -73,8 +75,10 @@ const categoriesSection = z.object({
   ...heading,
   linkLabel: short(40),
   linkUrl: optionalLink,
-  /** Up to five tiles (bento layout), in order. Empty = the first five active categories. */
-  items: z.array(z.object({ slug: z.string().trim().min(1, "Choose a category").max(80), imageUrl: image })).max(5),
+  /** "bento": one large + four tiles (max 5). "cards": uniform portrait cards (max 8). */
+  layout: z.enum(["bento", "cards"]).default("bento"),
+  /** Tiles in order. Empty = the first five (bento) or eight (cards) active categories. */
+  items: z.array(z.object({ slug: z.string().trim().min(1, "Choose a category").max(80), imageUrl: image })).max(8),
 });
 
 const promoSection = z.object({
@@ -92,9 +96,11 @@ const promoSection = z.object({
   /** Empty = the drawn garment inside the arch. */
   imageUrl: image,
   imageFit: z.enum(["cover", "contain"]).default("contain"),
+  imagePosition: z.enum(["right", "left"]).default("right"),
 });
 
-export const productSources = ["featured", "all", "category"] as const;
+/** "trending" = best sellers (recent orders) first, then the rest of the catalog. */
+export const productSources = ["featured", "trending", "all", "category"] as const;
 export const productDisplays = ["viewAll", "loadMore", "pagination", "none"] as const;
 
 const productsSection = z.object({
@@ -104,7 +110,7 @@ const productsSection = z.object({
   ...heading,
   source: z.enum(productSources).default("featured"),
   categorySlug: short(80),
-  columns: z.union([z.literal(4), z.literal(5), z.literal(6)]).default(4),
+  columns: z.union([z.literal(3), z.literal(4), z.literal(5), z.literal(6)]).default(4),
   /** Products shown at first (and per page / per "load more"). */
   limit: z.number().int().min(2).max(48).default(8),
   display: z.enum(productDisplays).default("viewAll"),
@@ -112,6 +118,37 @@ const productsSection = z.object({
   viewAllUrl: optionalLink,
   /** Category filter tabs above the grid. */
   tabs: z.boolean().default(true),
+});
+
+const productCarouselSection = z.object({
+  id,
+  type: z.literal("productCarousel"),
+  enabled: z.boolean().default(true),
+  ...heading,
+  source: z.enum(productSources).default("featured"),
+  categorySlug: short(80),
+  limit: z.number().int().min(3).max(24).default(10),
+  /** Cards visible at once on desktop (phones show ~1.5, tablets ~2.5). */
+  perView: z.number().int().min(2).max(6).default(4),
+  autoplay: z.boolean().default(true),
+  /** Seconds between autoplay steps. */
+  interval: z.number().min(2).max(15).default(5),
+  viewAllLabel: short(40),
+  viewAllUrl: optionalLink,
+});
+
+const richTextSection = z.object({
+  id,
+  type: z.literal("richText"),
+  enabled: z.boolean().default(true),
+  eyebrow: short(80),
+  title: short(160),
+  /** Plain text; blank lines start new paragraphs. */
+  body: short(2000),
+  buttonLabel: short(40),
+  buttonUrl: optionalLink,
+  align: z.enum(["center", "left"]).default("center"),
+  background: z.enum(["cream", "plain", "emerald"]).default("cream"),
 });
 
 const testimonialsSection = z.object({
@@ -154,12 +191,76 @@ export const homeSection = z.discriminatedUnion("type", [
   categoriesSection,
   promoSection,
   productsSection,
+  productCarouselSection,
   testimonialsSection,
   communitySection,
+  richTextSection,
 ]);
 export type HomeSection = z.infer<typeof homeSection>;
 export type HomeSectionType = HomeSection["type"];
 export type HomeSectionOf<T extends HomeSectionType> = Extract<HomeSection, { type: T }>;
+
+/** HomeSection.type values stored in the database, per section type. */
+export const homeSectionDbTypes = {
+  valueProps: "TRUST_BADGES",
+  categories: "CATEGORY_SHOWCASE",
+  promo: "PROMO_BANNER",
+  products: "PRODUCT_GRID",
+  productCarousel: "PRODUCT_SLIDER",
+  testimonials: "TESTIMONIALS",
+  community: "COMMUNITY_GRID",
+  richText: "RICH_TEXT",
+} as const satisfies Record<HomeSectionType, string>;
+
+/** Row shape for a section; `config` is everything except the columns stored separately. */
+export function toHomeSectionRow(section: HomeSection, order: number) {
+  const { id, type, enabled, ...config } = section;
+  const title = "title" in config && config.title ? config.title.slice(0, 200) : null;
+  return { id, type: homeSectionDbTypes[type], title, order, isEnabled: enabled, config };
+}
+
+export const sectionTypeFromDb = (dbType: string): HomeSectionType | undefined =>
+  (Object.keys(homeSectionDbTypes) as HomeSectionType[]).find((t) => homeSectionDbTypes[t] === dbType);
+
+/** Fresh widget with sensible defaults, for the builder's "Add section" drawer. */
+export function newHomeSection(type: HomeSectionType): HomeSection {
+  const sectionId = Math.random().toString(36).slice(2, 10);
+  switch (type) {
+    case "valueProps":
+      return homeSection.parse({ ...defaultHomeSections()[0], id: sectionId });
+    case "categories":
+      return homeSection.parse({ ...defaultHomeSections()[1], id: sectionId });
+    case "promo":
+      return homeSection.parse({ ...defaultHomeSections()[2], id: sectionId });
+    case "products":
+      return { ...newProductsSection({ eyebrow: "Collection", title: "New product grid", tabs: false }), id: sectionId };
+    case "productCarousel":
+      return homeSection.parse({
+        id: sectionId,
+        type,
+        eyebrow: "New In",
+        title: "Fresh from the atelier",
+        titleBn: "নতুন সংগ্রহ",
+        source: "all",
+        viewAllLabel: "View all",
+        viewAllUrl: "/products",
+      });
+    case "testimonials":
+      return homeSection.parse({ id: sectionId, type, eyebrow: "Customer Love", title: "What our customers say", titleBn: "আমাদের গ্রাহকদের কথা", items: [] });
+    case "community":
+      return homeSection.parse({ ...defaultHomeSections()[5], id: sectionId });
+    case "richText":
+      return homeSection.parse({
+        id: sectionId,
+        type,
+        eyebrow: "Our story",
+        title: "Modesty, crafted with intention",
+        body: "Every Ribat piece is designed and finished in Dhaka.",
+        buttonLabel: "Shop the collection",
+        buttonUrl: "/products",
+      });
+  }
+}
 
 // --- Defaults: the original hardcoded homepage --------------------------------------
 

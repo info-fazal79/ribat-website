@@ -27,6 +27,7 @@ export default async function CategoryPage({ params }: PageProps<"/categories/[s
         titleBn={category.nameBn ?? undefined}
         description={category.description ?? undefined}
         crumbs={[{ title: "Shop", href: "/products" }, { title: category.name }]}
+        imageUrl={category.bannerUrl ?? undefined}
       />
       <section className="container mx-auto px-4 py-12">
         {products.length > 0 ? (

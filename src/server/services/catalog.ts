@@ -93,6 +93,8 @@ export async function getCategories(): Promise<CatalogCategory[]> {
       name: c.name,
       nameBn: c.nameBn,
       description: c.description,
+      imageUrl: c.imageUrl,
+      bannerUrl: c.bannerUrl,
       productCount: c._count.products,
       art: art.kind,
       tone: art.tone,
@@ -119,6 +121,23 @@ export async function getActiveProducts(opts: { categorySlug?: string; featured?
     include: productInclude,
   });
   return rows.map(toCatalogProduct);
+}
+
+/** Product IDs by units sold in the last 60 days (cancelled/returned orders excluded), best first. */
+export async function getTrendingProductIds(): Promise<string[]> {
+  "use cache";
+  cacheTag(catalogTag);
+  cacheLife("hours");
+
+  const since = new Date(Date.now() - 60 * 86_400_000);
+  const rows = await db.orderItem.groupBy({
+    by: ["productId"],
+    where: { productId: { not: null }, order: { createdAt: { gte: since }, status: { notIn: ["CANCELLED", "RETURNED"] } } },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
+    take: 48,
+  });
+  return rows.flatMap((r) => (r.productId ? [r.productId] : []));
 }
 
 export async function getProductBySlug(slug: string) {

@@ -65,6 +65,28 @@ export async function listProducts(): Promise<AdminProductRow[]> {
   });
 }
 
+/** Every category (active or not) for Admin → Categories, in display order. */
+export async function listAdminCategories() {
+  const rows = await db.category.findMany({
+    orderBy: [{ position: "asc" }, { name: "asc" }],
+    include: { _count: { select: { products: true } } },
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    nameBn: c.nameBn ?? "",
+    slug: c.slug,
+    description: c.description ?? "",
+    imageUrl: c.imageUrl ?? "",
+    bannerUrl: c.bannerUrl ?? "",
+    position: c.position,
+    isActive: c.isActive,
+    productCount: c._count.products,
+  }));
+}
+
+export type AdminCategory = Awaited<ReturnType<typeof listAdminCategories>>[number];
+
 export async function listCategoryOptions() {
   return db.category.findMany({
     where: { isActive: true },
