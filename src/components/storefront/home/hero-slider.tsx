@@ -12,6 +12,12 @@ import { cn } from "@/lib/utils";
 
 type HeroSettings = SettingValue<"hero_slides">;
 
+/**
+ * Shared by the slide content and the slider controls. Text and frame live in this one centred
+ * container, so the screen edge → text gap always equals the frame → screen edge gap.
+ */
+const HERO_CONTAINER = "mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-12";
+
 export function HeroSlider({ settings, products = [] }: { settings: HeroSettings; products?: HeroProduct[] }) {
   const { slides, autoplay, pauseOnHover } = settings;
   const intervalMs = settings.interval * 1000;
@@ -35,6 +41,8 @@ export function HeroSlider({ settings, products = [] }: { settings: HeroSettings
       aria-roledescription="carousel"
       aria-label="Featured collections"
       className="relative h-[min(88vh,760px)] min-h-[560px] overflow-hidden"
+      // Same height as the classes above, exposed so slides can size the frame column from it.
+      style={{ "--hero-h": "max(560px, min(88vh, 760px))" } as React.CSSProperties}
       onMouseEnter={pause}
       onMouseLeave={resume}
       onFocusCapture={() => setPaused(true)}
@@ -54,7 +62,8 @@ export function HeroSlider({ settings, products = [] }: { settings: HeroSettings
       {slides.length > 1 && (
         <div
           className={cn(
-            "absolute inset-x-0 bottom-8 z-20 container mx-auto flex items-center justify-between px-4",
+            "absolute inset-x-0 bottom-8 z-20 flex items-center justify-between",
+            HERO_CONTAINER,
             slides[index].text === "light" ? "text-[#f6f1e7]" : "text-[#1d1a14]",
           )}
         >
@@ -151,7 +160,13 @@ export function HeroSlideView({
       aria-hidden={!active}
       inert={!active}
       className={className}
-      style={{ background: backgroundCss(bg) }}
+      style={
+        {
+          background: backgroundCss(bg),
+          // Frame column = the arch's width (90% of slide height at 3:4.2). The admin preview is 700px tall.
+          "--hero-frame-w": "calc(var(--hero-h, 700px) * 0.643)",
+        } as React.CSSProperties
+      }
     >
       {bg.type === "image" && media && (
         // eslint-disable-next-line @next/next/no-img-element -- media library asset
@@ -177,23 +192,14 @@ export function HeroSlideView({
       {media && bg.overlay > 0 && <div className="absolute inset-0 bg-black" style={{ opacity: bg.overlay / 100 }} />}
       {bg.pattern && <GeometricPattern color={accent} opacity={0.14} />}
 
-      {/* Right-side visual: arch with a real photo; the drawn garment only when there is none */}
-      {visual.type !== "none" && (
-        <HeroFrame visual={visual} photo={photo} alt={product?.name ?? ""} accent={accent} active={active} first={first}>
-          <Silhouette
-            kind={visual.art}
-            fill={`color-mix(in oklch, ${accent} ${light ? 30 : 55}%, ${bg.color})`}
-            stroke={accent}
-            className={cn(
-              "absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto",
-              // A photo slot with no photo yet gets a faint placeholder rather than full artwork.
-              visual.type === "image" && "opacity-30",
-            )}
-          />
-        </HeroFrame>
-      )}
-
-      <div className="relative z-10 container mx-auto flex h-full items-center px-4">
+      {/* Balanced two-column layout: text left, frame right, equal outer margins. */}
+      <div
+        className={cn(
+          "relative z-10 grid h-full items-center justify-between gap-12 xl:gap-20",
+          HERO_CONTAINER,
+          visual.type !== "none" && "lg:grid-cols-[minmax(0,1fr)_var(--hero-frame-w)]",
+        )}
+      >
         <div
           className={cn(
             "max-w-xl space-y-6 transition-all delay-200 duration-1000 ease-out",
@@ -206,7 +212,7 @@ export function HeroSlideView({
               {slide.eyebrow}
             </p>
           )}
-          <Heading className="text-5xl leading-[1.02] font-medium md:text-7xl">{slide.title}</Heading>
+          <Heading className="text-5xl leading-[1.02] font-medium md:text-6xl xl:text-7xl">{slide.title}</Heading>
           {slide.titleBn && <p className="font-bengali text-lg opacity-90">{slide.titleBn}</p>}
           {product && (
             <p className="flex flex-wrap items-center gap-3 tabular-nums">
@@ -249,6 +255,23 @@ export function HeroSlideView({
             )}
           </div>
         </div>
+        {/* Right-side visual: arch with a real photo; the drawn garment only when there is none */}
+        {visual.type !== "none" && (
+          <div className="relative hidden h-full lg:block">
+            <HeroFrame visual={visual} photo={photo} alt={product?.name ?? ""} accent={accent} active={active} first={first}>
+              <Silhouette
+                kind={visual.art}
+                fill={`color-mix(in oklch, ${accent} ${light ? 30 : 55}%, ${bg.color})`}
+                stroke={accent}
+                className={cn(
+                  "absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto",
+                  // A photo slot with no photo yet gets a faint placeholder rather than full artwork.
+                  visual.type === "image" && "opacity-30",
+                )}
+              />
+            </HeroFrame>
+          </div>
+        )}
       </div>
     </div>
   );

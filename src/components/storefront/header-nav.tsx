@@ -21,11 +21,29 @@ export const megaColumns = (item: MenuItem) => item.columns.slice(0, item.gridCo
 export const hasSubmenu = (item: MenuItem) =>
   item.megaMenu ? megaColumns(item).length > 0 || item.promo.enabled : item.links.length > 0;
 
-/** Desktop header menu: plain links, standard dropdowns, and full-width mega menus. */
-export function DesktopNav({ items }: { items: MenuItem[] }) {
+/**
+ * Desktop header menu: plain links, standard dropdowns, and full-width mega menus.
+ * "row" is its own bordered bar under the header; "inline" sits inside a header row and isn't
+ * positioned, so mega panels span the whole header instead of just this nav.
+ */
+export function DesktopNav({
+  items,
+  variant = "row",
+  className,
+  label = "Main",
+}: {
+  items: MenuItem[];
+  variant?: "row" | "inline";
+  className?: string;
+  label?: string;
+}) {
   return (
-    <nav className="relative hidden border-t lg:block" aria-label="Main">
-      <ul className="flex justify-center gap-10">
+    <nav
+      // Inline: stretch to the row height so the hover area reaches the panel below the header.
+      className={cn("hidden lg:block", variant === "row" ? "relative border-t" : "self-stretch", className)}
+      aria-label={label}
+    >
+      <ul className={cn("flex", variant === "row" ? "justify-center gap-10" : "h-full gap-7 xl:gap-9")}>
         {items.map((item) => {
           const submenu = hasSubmenu(item);
           return (

@@ -6,6 +6,7 @@ import { ImageIcon, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { saveAppearance } from "@/app/(admin)/admin/appearance/actions";
 import { ColorInput } from "@/components/admin/appearance/controls";
+import { HeaderLayoutPicker } from "@/components/admin/appearance/header-layout-picker";
 import { HeroEditor } from "@/components/admin/appearance/hero-editor";
 import { MenuEditor, type QuickAddCategory } from "@/components/admin/appearance/menu-editor";
 import { ImageUpload } from "@/components/admin/image-upload";
@@ -23,7 +24,8 @@ type Branding = SettingValue<"appearance.branding">;
 type Announcement = SettingValue<"appearance.announcement">;
 type HeaderMenu = SettingValue<"header_menu">;
 type Hero = SettingValue<"hero_slides">;
-type Draft = { branding: Branding; announcement: Announcement; headerMenu: HeaderMenu; hero: Hero };
+type HeaderLayoutSetting = SettingValue<"header_layout">;
+type Draft = { branding: Branding; announcement: Announcement; headerMenu: HeaderMenu; hero: Hero; headerLayout: HeaderLayoutSetting };
 
 const DEFAULT_COLORS = { backgroundColor: "#123e31", textColor: "#d4af37" };
 
@@ -82,6 +84,7 @@ export function AppearanceCustomizer({
       <Tabs defaultValue="branding" className="min-w-0">
         <TabsList className="h-auto! w-full max-w-full sm:w-fit max-sm:[&>*]:min-w-0 max-sm:[&>*]:whitespace-normal">
           <TabsTrigger value="branding">Branding & Logo</TabsTrigger>
+          <TabsTrigger value="header">Header Layout</TabsTrigger>
           <TabsTrigger value="hero">Hero Slider</TabsTrigger>
           <TabsTrigger value="announcement">Top Announcement Bar</TabsTrigger>
           <TabsTrigger value="menus">Navigation & Menus</TabsTrigger>
@@ -255,6 +258,13 @@ export function AppearanceCustomizer({
 
         <TabsContent value="hero" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
           <HeroEditor value={draft.hero} products={products} errors={errors} onChange={(hero) => setDraft((d) => ({ ...d, hero }))} />
+        </TabsContent>
+
+        <TabsContent value="header" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">
+          <HeaderLayoutPicker
+            value={draft.headerLayout.layout}
+            onChange={(layout) => setDraft((d) => ({ ...d, headerLayout: { layout } }))}
+          />
         </TabsContent>
 
         <TabsContent value="menus" className="min-w-0 rounded-xl border bg-card p-4 sm:p-6">

@@ -69,6 +69,18 @@ const defaultMenu = [
   ["Fragrance", "/categories/fragrance"],
 ].map(([title, url]) => menuItem.parse({ title, url }));
 
+// --- Header layout -------------------------------------------------------------
+
+/** WoodMart-style header presets (rendered by components/storefront/site-header.tsx). */
+export const headerLayouts = [
+  "layout_1_centered",
+  "layout_2_inline_standard",
+  "layout_3_categories_dropdown",
+  "layout_4_split_menu",
+  "layout_5_compact_search",
+] as const;
+export type HeaderLayout = (typeof headerLayouts)[number];
+
 // --- Hero slider ---------------------------------------------------------------
 
 const optionalUrl = z
@@ -239,6 +251,9 @@ export const settingSchemas = {
   }),
   header_menu: z.object({
     items: z.array(menuItem).max(12).default(defaultMenu),
+  }),
+  header_layout: z.object({
+    layout: z.enum(headerLayouts).default("layout_1_centered"),
   }),
   "store.currency": z.object({
     code: z.literal("BDT").default("BDT"),

@@ -13,8 +13,11 @@ import type { SearchResult } from "@/server/services/catalog";
 
 const SUGGESTIONS = ["Panjabi", "Thobe", "Abaya", "Silk", "Attar"];
 
-/** Header search: icon trigger + overlay with debounced live results. */
-export function SearchModal({ className }: { className?: string }) {
+/**
+ * Header search: icon trigger (or a search-bar–styled trigger for the search-led header layouts)
+ * + overlay with debounced live results.
+ */
+export function SearchModal({ className, variant = "icon" }: { className?: string; variant?: "icon" | "bar" }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -65,9 +68,27 @@ export function SearchModal({ className }: { className?: string }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Search" className={className}>
-          <Search />
-        </Button>
+        {variant === "bar" ? (
+          <button
+            type="button"
+            className={cn(
+              "flex h-11 w-full items-center gap-3 rounded-full border bg-muted/40 pr-1.5 pl-4 text-left text-sm text-muted-foreground transition hover:border-foreground/30 hover:bg-background",
+              className,
+            )}
+          >
+            <Search className="size-4 shrink-0" />
+            <span className="flex-1 truncate">
+              Search panjabi, thobe, abaya… <span className="font-bengali">/ পণ্য খুঁজুন</span>
+            </span>
+            <span className="hidden h-8 items-center rounded-full bg-primary px-4 text-xs font-medium tracking-wider text-primary-foreground uppercase sm:flex">
+              Search
+            </span>
+          </button>
+        ) : (
+          <Button variant="ghost" size="icon" aria-label="Search" className={className}>
+            <Search />
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         showCloseButton={false}

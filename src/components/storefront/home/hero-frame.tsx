@@ -152,7 +152,8 @@ export function HeroFrame({
   return (
     <div
       className={cn(
-        "absolute right-[4%] hidden aspect-[3/4.2] md:block lg:right-[8%]",
+        // Right-aligned in its grid cell, which ends exactly at the hero container's content edge.
+        "absolute right-0 aspect-[3/4.2]",
         floating ? "top-[9%] bottom-[14%]" : "top-[10%] bottom-0",
         "transition-[opacity,translate] duration-[1400ms] ease-out",
         active ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",

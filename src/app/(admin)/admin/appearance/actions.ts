@@ -12,6 +12,7 @@ const appearanceInput = z.object({
   announcement: settingSchemas["appearance.announcement"],
   headerMenu: settingSchemas.header_menu,
   hero: settingSchemas.hero_slides,
+  headerLayout: settingSchemas.header_layout,
 });
 
 export type SaveAppearanceResult = { ok: true } | { ok: false; message: string; fieldErrors: Record<string, string> };
@@ -24,7 +25,7 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
     for (const issue of parsed.error.issues) fieldErrors[issue.path.join(".")] ??= issue.message;
     return { ok: false, message: Object.values(fieldErrors)[0] ?? "Please fix the highlighted fields.", fieldErrors };
   }
-  const { branding, announcement, headerMenu, hero } = parsed.data;
+  const { branding, announcement, headerMenu, hero, headerLayout } = parsed.data;
   if (branding.logoType === "image" && !branding.logoUrl) {
     return { ok: false, message: "Add a logo image URL or switch to Text logo.", fieldErrors: { "branding.logoUrl": "Required for an image logo" } };
   }
@@ -46,6 +47,11 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
     }),
     db.setting.upsert({ where: { key: "header_menu" }, update: { value: headerMenu }, create: { key: "header_menu", value: headerMenu } }),
     db.setting.upsert({ where: { key: "hero_slides" }, update: { value: hero }, create: { key: "hero_slides", value: hero } }),
+    db.setting.upsert({
+      where: { key: "header_layout" },
+      update: { value: headerLayout },
+      create: { key: "header_layout", value: headerLayout },
+    }),
   ]);
 
   updateTag(settingsTag);
