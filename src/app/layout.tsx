@@ -23,9 +23,11 @@ const notoBengali = Noto_Sans_Bengali({
 
 export async function generateMetadata(): Promise<Metadata> {
   const { faviconUrl } = await getSetting("appearance.branding");
+  // The default icon lives in public/, not app/favicon.ico: a file-convention favicon is always
+  // emitted first and would win over the uploaded one.
   return {
     ...baseMetadata,
-    ...(faviconUrl && { icons: { icon: faviconUrl } }),
+    icons: { icon: faviconUrl || "/favicon.ico" },
   };
 }
 

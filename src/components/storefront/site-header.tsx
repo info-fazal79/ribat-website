@@ -1,15 +1,21 @@
 import Link from "next/link";
-import { Heart, Menu, Search, User } from "lucide-react";
+import { Heart, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
 import { CartDrawer } from "@/components/storefront/cart-drawer";
+import { DesktopNav, MobileNav } from "@/components/storefront/header-nav";
+import { SearchModal } from "@/components/storefront/search-modal";
 import { SiteLogo } from "@/components/storefront/site-logo";
-import { siteConfig, storefrontNav } from "@/config/site";
+import { siteConfig } from "@/config/site";
 import { getSetting } from "@/server/services/settings";
 
 export async function SiteHeader() {
-  const [branding, announcement] = await Promise.all([getSetting("appearance.branding"), getSetting("appearance.announcement")]);
+  const [branding, announcement, menu] = await Promise.all([
+    getSetting("appearance.branding"),
+    getSetting("appearance.announcement"),
+    getSetting("header_menu"),
+  ]);
   return (
     <>
       <AnnouncementBar settings={announcement} />
@@ -26,21 +32,10 @@ export async function SiteHeader() {
                 <SheetHeader>
                   <SheetTitle className="font-heading text-2xl tracking-[0.2em] uppercase">{siteConfig.name}</SheetTitle>
                 </SheetHeader>
-                <nav className="flex flex-col px-4">
-                  {storefrontNav.map((item) => (
-                    <Link key={item.href} href={item.href} className="border-b py-4 text-sm tracking-widest uppercase">
-                      {item.title}
-                    </Link>
-                  ))}
-                  <Link href="/products" className="py-4 text-sm font-semibold tracking-widest uppercase">
-                    Shop All
-                  </Link>
-                </nav>
+                <MobileNav items={menu.items} />
               </SheetContent>
             </Sheet>
-            <Button variant="ghost" size="icon" aria-label="Search" className="hidden lg:inline-flex">
-              <Search />
-            </Button>
+            <SearchModal className="hidden lg:inline-flex" />
           </div>
 
           <Link href="/" className="text-center leading-none">
@@ -48,9 +43,7 @@ export async function SiteHeader() {
           </Link>
 
           <div className="flex items-center justify-end gap-0.5">
-            <Button variant="ghost" size="icon" aria-label="Search" className="lg:hidden">
-              <Search />
-            </Button>
+            <SearchModal className="lg:hidden" />
             <Button variant="ghost" size="icon" aria-label="Wishlist" className="hidden sm:inline-flex">
               <Heart />
             </Button>
@@ -62,17 +55,7 @@ export async function SiteHeader() {
             <CartDrawer />
           </div>
         </div>
-        <nav className="hidden justify-center gap-10 border-t py-3.5 lg:flex">
-          {storefrontNav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="relative text-[11px] font-medium tracking-[0.2em] uppercase text-foreground/70 transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-px after:origin-left after:scale-x-0 after:bg-foreground after:transition-transform hover:text-foreground hover:after:scale-x-100"
-            >
-              {item.title}
-            </Link>
-          ))}
-        </nav>
+        <DesktopNav items={menu.items} />
       </header>
     </>
   );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ImageIcon, Loader2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { saveAppearance } from "@/app/(admin)/admin/appearance/actions";
+import { MenuEditor } from "@/components/admin/appearance/menu-editor";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Field, ListEditor, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import { AnnouncementBar } from "@/components/storefront/announcement-bar";
@@ -17,7 +18,8 @@ import type { SettingValue } from "@/lib/validations/settings";
 
 type Branding = SettingValue<"appearance.branding">;
 type Announcement = SettingValue<"appearance.announcement">;
-type Draft = { branding: Branding; announcement: Announcement };
+type HeaderMenu = SettingValue<"header_menu">;
+type Draft = { branding: Branding; announcement: Announcement; headerMenu: HeaderMenu };
 
 const DEFAULT_COLORS = { backgroundColor: "#123e31", textColor: "#d4af37" };
 
@@ -73,6 +75,7 @@ export function AppearanceCustomizer(initial: Draft) {
         <TabsList className="h-auto! w-full max-w-full sm:w-fit max-sm:[&>*]:min-w-0 max-sm:[&>*]:whitespace-normal">
           <TabsTrigger value="branding">Branding & Logo</TabsTrigger>
           <TabsTrigger value="announcement">Top Announcement Bar</TabsTrigger>
+          <TabsTrigger value="menus">Navigation & Menus</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="min-w-0 space-y-6 rounded-xl border bg-card p-6">
@@ -239,6 +242,18 @@ export function AppearanceCustomizer(initial: Draft) {
               </Field>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="menus" className="min-w-0 space-y-4 rounded-xl border bg-card p-6">
+          <p className="text-sm text-muted-foreground">
+            Header menu items, in order. Add dropdown links to any item, or switch on Mega menu for a full-width panel with
+            columns and a promo card.
+          </p>
+          <MenuEditor
+            items={draft.headerMenu.items}
+            errors={errors}
+            onChange={(items) => setDraft((d) => ({ ...d, headerMenu: { items } }))}
+          />
         </TabsContent>
       </Tabs>
 

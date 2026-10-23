@@ -19,6 +19,51 @@ const assetUrl = z
   )
   .default("");
 
+const menuUrl = z
+  .string()
+  .trim()
+  .min(1, "Add a link")
+  .max(300)
+  .refine((v) => /^(\/|#|https?:\/\/)/.test(v), "Use a /path or a full https:// URL");
+
+const menuLink = z.object({
+  title: z.string().trim().min(1, "Add a title").max(60),
+  url: menuUrl,
+});
+
+const menuItem = z.object({
+  title: z.string().trim().min(1, "Add a title").max(40),
+  url: menuUrl,
+  // Plain dropdown when megaMenu is off; ignored when it's on.
+  links: z.array(menuLink).max(20).default([]),
+  megaMenu: z.boolean().default(false),
+  columns: z
+    .array(z.object({ title: z.string().trim().max(60).default(""), links: z.array(menuLink).max(12).default([]) }))
+    .max(5)
+    .default([]),
+  promo: z
+    .object({
+      enabled: z.boolean().default(false),
+      imageUrl: assetUrl,
+      badge: z.string().trim().max(40).default(""),
+      title: z.string().trim().max(80).default(""),
+      buttonText: z.string().trim().max(30).default("Shop now"),
+      buttonUrl: z.union([z.literal(""), menuUrl]).default(""),
+    })
+    .prefault({}),
+});
+
+export type MenuItem = z.infer<typeof menuItem>;
+
+const defaultMenu = [
+  ["New Arrivals", "/products"],
+  ["Panjabi", "/categories/panjabi"],
+  ["Thobe", "/categories/thobe"],
+  ["Abaya", "/categories/abaya"],
+  ["Casual", "/categories/casual"],
+  ["Fragrance", "/categories/fragrance"],
+].map(([title, url]) => menuItem.parse({ title, url }));
+
 export const defaultAnnouncements = [
   "সারা বাংলাদেশে ক্যাশ অন ডেলিভারি",
   "৭ দিনে সহজ এক্সচেঞ্জ সুবিধা",
@@ -60,6 +105,9 @@ export const settingSchemas = {
     mode: z.enum(["marquee", "static"]).default("marquee"),
     // Seconds for one full loop of the ticker — lower is faster.
     speed: z.number().int().min(5).max(120).default(40),
+  }),
+  header_menu: z.object({
+    items: z.array(menuItem).max(12).default(defaultMenu),
   }),
   "store.currency": z.object({
     code: z.literal("BDT").default("BDT"),

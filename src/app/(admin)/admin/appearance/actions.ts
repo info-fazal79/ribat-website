@@ -10,6 +10,7 @@ import { settingsTag } from "@/server/services/settings";
 const appearanceInput = z.object({
   branding: settingSchemas["appearance.branding"],
   announcement: settingSchemas["appearance.announcement"],
+  headerMenu: settingSchemas.header_menu,
 });
 
 export type SaveAppearanceResult = { ok: true } | { ok: false; message: string; fieldErrors: Record<string, string> };
@@ -22,7 +23,7 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
     for (const issue of parsed.error.issues) fieldErrors[issue.path.join(".")] ??= issue.message;
     return { ok: false, message: Object.values(fieldErrors)[0] ?? "Please fix the highlighted fields.", fieldErrors };
   }
-  const { branding, announcement } = parsed.data;
+  const { branding, announcement, headerMenu } = parsed.data;
   if (branding.logoType === "image" && !branding.logoUrl) {
     return { ok: false, message: "Add a logo image URL or switch to Text logo.", fieldErrors: { "branding.logoUrl": "Required for an image logo" } };
   }
@@ -34,6 +35,7 @@ export async function saveAppearance(raw: unknown): Promise<SaveAppearanceResult
       update: { value: announcement },
       create: { key: "appearance.announcement", value: announcement },
     }),
+    db.setting.upsert({ where: { key: "header_menu" }, update: { value: headerMenu }, create: { key: "header_menu", value: headerMenu } }),
   ]);
 
   updateTag(settingsTag);
