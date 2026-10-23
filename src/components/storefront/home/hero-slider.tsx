@@ -16,7 +16,7 @@ type HeroSettings = SettingValue<"hero_slides">;
  * Shared by the slide content and the slider controls. Text and frame live in this one centred
  * container, so the screen edge → text gap always equals the frame → screen edge gap.
  */
-const HERO_CONTAINER = "mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-12";
+const HERO_CONTAINER = "mx-auto w-full max-w-7xl px-8 sm:px-12 lg:px-16";
 
 export function HeroSlider({ settings, products = [] }: { settings: HeroSettings; products?: HeroProduct[] }) {
   const { slides, autoplay, pauseOnHover } = settings;
