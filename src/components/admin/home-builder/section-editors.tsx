@@ -16,12 +16,13 @@ import {
 import { ColorInput, Switch } from "@/components/admin/appearance/controls";
 import { Field, ListEditor, TextArea, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import { MediaField } from "@/components/admin/media/media-field";
-import { PROMO_SHAPES } from "@/components/storefront/home/editorial-banner";
+import { HERO_EFFECTS, HERO_SHAPES } from "@/components/storefront/home/hero-frame";
 import { valuePropIconMap } from "@/components/storefront/home/home-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { productSources, promoShapes, valuePropIcons, type HomeSection, type HomeSectionOf, type HomeSectionType } from "@/lib/validations/homepage";
+import { frameEffects, frameShapes } from "@/lib/validations/frames";
+import { productSources, valuePropIcons, type HomeSection, type HomeSectionOf, type HomeSectionType } from "@/lib/validations/homepage";
 
 /*
  * Settings panels for each homepage widget, laid out for the builder's narrow side panel:
@@ -571,9 +572,9 @@ function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
         )}
         <Field label="Frame shape">
           <div role="radiogroup" aria-label="Frame shape" className="grid grid-cols-4 gap-1.5">
-            {promoShapes.map((shape) => {
+            {frameShapes.map((shape) => {
               const selected = section.frame.shape === shape;
-              const meta = PROMO_SHAPES[shape];
+              const meta = HERO_SHAPES[shape];
               return (
                 <button
                   key={shape}
@@ -586,13 +587,13 @@ function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
                     selected && "border-primary text-foreground ring-1 ring-primary",
                   )}
                 >
-                  <svg viewBox="0 0 1 1" preserveAspectRatio="none" className={cn("h-9 overflow-visible", meta.box === "square" ? "w-9" : "w-[1.6rem]")} aria-hidden>
+                  <svg viewBox="0 0 1 1" preserveAspectRatio="none" className="h-9 w-[1.6rem] overflow-visible" aria-hidden>
                     <path
                       d={meta.path}
                       fill={selected ? "color-mix(in oklch, currentColor 15%, transparent)" : "none"}
                       stroke="currentColor"
                       strokeWidth={1.5}
-                      strokeDasharray={shape === "rectangle" ? "3 2" : undefined}
+                      strokeDasharray={shape === "natural" ? "3 2" : undefined}
                       vectorEffect="non-scaling-stroke"
                     />
                   </svg>
@@ -602,6 +603,19 @@ function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
             })}
           </div>
         </Field>
+        <SelectField
+          label="Animation effect"
+          hint="Same effects as the Hero Slider; off for visitors who prefer reduced motion."
+          value={section.frame.effect}
+          onChange={(v) => setFrame({ effect: v as (typeof frameEffects)[number] })}
+        >
+          {/* Cinematic zoom plays on slide change, which a static banner never has. */}
+          {frameEffects.filter((e) => e !== "cinematic_zoom").map((effect) => (
+            <option key={effect} value={effect}>
+              {HERO_EFFECTS[effect]}
+            </option>
+          ))}
+        </SelectField>
         <Choice
           label="Image side"
           value={section.imagePosition}

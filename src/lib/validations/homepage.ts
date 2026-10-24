@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { frameEffects, frameShapes } from "@/lib/validations/frames";
 
 /**
  * Homepage sections and footer content, stored as JSON settings ("home_sections",
@@ -90,8 +91,14 @@ const videoUrl = z
   .refine((v) => v === "" || /^(https?:\/\/|\/)\S+$/.test(v), "Use a /path or a full https:// URL")
   .default("");
 
-/** Frame shapes for the promo image (see PROMO_SHAPES in editorial-banner.tsx). */
-export const promoShapes = ["mihrab", "moroccan", "pill", "squircle", "octagon", "star", "rectangle"] as const;
+/** Promo shape names saved before the banner adopted the Hero Slider's shapes. */
+const legacyPromoShapes: Record<string, (typeof frameShapes)[number]> = {
+  mihrab: "islamic_arch",
+  moroccan: "moroccan_arch",
+  octagon: "diagonal_cut",
+  star: "islamic_arch",
+  rectangle: "rounded_card",
+};
 
 const promoSection = z.object({
   id,
@@ -137,11 +144,13 @@ const promoSection = z.object({
   imagePosition: z.enum(["right", "left"]).default("right"),
   frame: z
     .object({
-      shape: z.enum(promoShapes).default("mihrab"),
+      /** Same shapes and effects as the Hero Slider frame (HERO_SHAPES / HERO_EFFECTS). */
+      shape: z.preprocess((v) => (typeof v === "string" && v in legacyPromoShapes ? legacyPromoShapes[v] : v), z.enum(frameShapes).default("islamic_arch")),
+      effect: z.enum(frameEffects).default("light_sheen"),
       /** Horizontal placement of the frame inside its column. */
       align: z.enum(["start", "center", "end"]).default("center"),
       border: z.enum(["accent", "white", "none"]).default("accent"),
-      shadow: z.enum(["none", "soft", "elevated", "glow"]).default("none"),
+      shadow: z.enum(["none", "soft", "elevated", "glow"]).default("soft"),
     })
     .prefault({}),
 });

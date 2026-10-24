@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { frameEffects, frameShapes } from "@/lib/validations/frames";
 import { footerSetting, homeSectionsSetting } from "@/lib/validations/homepage";
 
 const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Use a hex colour like #123e31");
@@ -139,10 +140,8 @@ const heroSlide = z.object({
       imageUrl: optionalUrl,
       fit: z.enum(["cover", "contain"]).default("cover"),
       // Frame around the visual (see HERO_SHAPES) and its looping effect (see HERO_EFFECTS).
-      shape: z
-        .enum(["islamic_arch", "moroccan_arch", "squircle", "pill", "rounded_card", "diagonal_cut", "natural"])
-        .default("islamic_arch"),
-      effect: z.enum(["none", "light_sheen", "ambient_glow", "subtle_float", "cinematic_zoom"]).default("none"),
+      shape: z.enum(frameShapes).default("islamic_arch"),
+      effect: z.enum(frameEffects).default("none"),
     })
     .prefault({}),
 });

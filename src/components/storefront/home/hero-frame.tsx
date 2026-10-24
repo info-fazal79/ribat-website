@@ -68,14 +68,20 @@ export function HeroFrame({
   accent,
   active,
   first,
+  outline,
+  className,
   children,
 }: {
-  visual: Visual;
+  visual: Pick<Visual, "shape" | "effect" | "fit">;
   photo: string;
   alt: string;
   accent: string;
   active: boolean;
   first: boolean;
+  /** Outline colour; defaults to the accent at 45%. "transparent" hides it. */
+  outline?: string;
+  /** Replaces the hero placement (right-aligned, slide-height); the box must keep the 3:4.2 ratio. */
+  className?: string;
   /** Fallback art when there is no photo. */
   children: React.ReactNode;
 }) {
@@ -86,7 +92,7 @@ export function HeroFrame({
   const card = shape === "rounded_card";
   // Only the visible slide animates; reduced-motion users get the static frame.
   const animate = (on: boolean, cls: string) => on && active && cls;
-  const border = `color-mix(in oklch, ${accent} 45%, transparent)`;
+  const border = outline ?? `color-mix(in oklch, ${accent} 45%, transparent)`;
   const tint = natural ? undefined : `linear-gradient(180deg, color-mix(in oklch, ${accent} 16%, transparent), transparent 75%)`;
 
   const contain = natural || visual.fit === "contain";
@@ -152,9 +158,11 @@ export function HeroFrame({
   return (
     <div
       className={cn(
-        // Right-aligned in its grid cell, which ends exactly at the hero container's content edge.
-        "absolute right-0 aspect-[3/4.2]",
-        floating ? "top-[9%] bottom-[14%]" : "top-[10%] bottom-0",
+        className ?? [
+          // Right-aligned in its grid cell, which ends exactly at the hero container's content edge.
+          "absolute right-0 aspect-[3/4.2]",
+          floating ? "top-[9%] bottom-[14%]" : "top-[10%] bottom-0",
+        ],
         "transition-[opacity,translate] duration-[1400ms] ease-out",
         active ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
       )}

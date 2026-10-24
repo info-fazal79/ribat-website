@@ -1,61 +1,11 @@
 import Link from "next/link";
-import { useId } from "react";
 import { ArrowRight } from "lucide-react";
 import { GeometricPattern, Silhouette } from "@/components/storefront/art";
-import { HERO_SHAPES } from "@/components/storefront/home/hero-frame";
+import { HeroFrame } from "@/components/storefront/home/hero-frame";
 import type { HomeSectionOf } from "@/lib/validations/homepage";
 import { cn } from "@/lib/utils";
 
 type Promo = HomeSectionOf<"promo">;
-export type PromoShape = Promo["frame"]["shape"];
-type PromoBox = "standing" | "floating" | "square";
-
-/** Eight-point star (khatam): outer points on r = 0.5, inner corners where the two squares cross. */
-const starPath = (() => {
-  const inner = (0.5 * Math.SQRT1_2) / Math.cos(Math.PI / 8);
-  const points = Array.from({ length: 16 }, (_, i) => {
-    const r = i % 2 ? inner : 0.5;
-    const a = -Math.PI / 2 + (i * Math.PI) / 8;
-    return `${(0.5 + r * Math.cos(a)).toFixed(4)},${(0.5 + r * Math.sin(a)).toFixed(4)}`;
-  });
-  return `M${points.join(" L")} Z`;
-})();
-
-/**
- * Frame shapes for the promo image. `path` is in a 0–1 box (SVG objectBoundingBox units) and is
- * both the clip and the outline; shapes with a CSS `radius` use border-radius instead, so the
- * mihrab stays a true semicircle at any width. `box`: "standing" frames rest on the banner's lower
- * edge, "floating" ones sit clear of it, "square" ones keep a 1:1 box.
- */
-export const PROMO_SHAPES: Record<PromoShape, { label: string; box: PromoBox; path: string; radius?: string }> = {
-  mihrab: { label: "Arch / Mihrab", box: "standing", path: HERO_SHAPES.islamic_arch.path, radius: "9999px 9999px 0 0" },
-  moroccan: { label: "Moroccan Arch", box: "standing", path: HERO_SHAPES.moroccan_arch.path },
-  pill: { label: "Pill", box: "floating", path: HERO_SHAPES.pill.path, radius: "9999px" },
-  squircle: { label: "Squircle", box: "floating", path: HERO_SHAPES.squircle.path },
-  octagon: { label: "Octagon", box: "floating", path: "M0.29,0 L0.71,0 L1,0.2 L1,0.8 L0.71,1 L0.29,1 L0,0.8 L0,0.2 Z" },
-  star: { label: "Star-cut", box: "square", path: starPath },
-  rectangle: { label: "Rectangle (no mask)", box: "standing", path: HERO_SHAPES.natural.path, radius: "0" },
-};
-
-/** Frame box per placement inside the image column (64% wide, or a centred 1:1 square). */
-const BOX_CLASS: Record<PromoBox, Record<Promo["frame"]["align"], string>> = {
-  standing: {
-    start: "top-[10%] bottom-0 left-[6%] right-[30%]",
-    center: "top-[10%] bottom-0 inset-x-[18%]",
-    end: "top-[10%] bottom-0 left-[30%] right-[6%]",
-  },
-  floating: {
-    start: "inset-y-[10%] left-[6%] right-[30%]",
-    center: "inset-y-[10%] inset-x-[18%]",
-    end: "inset-y-[10%] left-[30%] right-[6%]",
-  },
-  square: {
-    start: "top-1/2 left-[6%] -translate-y-1/2",
-    center: "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
-    end: "top-1/2 right-[6%] -translate-y-1/2",
-  },
-};
-
 const LIGHT_INK = "#f6f1e7";
 const DARK_INK = "#1d1a14";
 
@@ -161,66 +111,36 @@ function PromoButton({ section }: { section: Promo }) {
   );
 }
 
-/** The image column: shaped, outlined frame with the photo (or the drawn garment). */
+const JUSTIFY: Record<Promo["frame"]["align"], string> = { start: "md:justify-start", center: "md:justify-center", end: "md:justify-end" };
+
+/**
+ * The image column: the Hero Slider's own frame (same shapes, outline, sheen and effects) in a
+ * width-capped 3:4.2 portrait box, so it never stretches with the column.
+ */
 function PromoFrame({ section }: { section: Promo }) {
-  const clipId = `promo-clip-${useId().replace(/:/g, "")}`;
   const { frame, accent, imageUrl } = section;
-  const shape = PROMO_SHAPES[frame.shape];
-  const standing = shape.box === "standing";
-  const stroke =
-    frame.border === "accent" ? `color-mix(in oklch, ${accent} 40%, transparent)` : frame.border === "white" ? "rgb(255 255 255 / 0.5)" : undefined;
-  const tint = `linear-gradient(180deg, color-mix(in oklch, ${accent} 18%, transparent), transparent 80%)`;
-
-  const silhouette = (className: string) => (
-    <Silhouette kind="panjabi" fill="#d9c39a" stroke="rgba(60,47,25,0.5)" className={cn("absolute inset-x-0 mx-auto w-auto drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)]", className)} />
-  );
-  const content = imageUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element -- media library asset
-    <img
-      src={imageUrl}
-      alt=""
-      className={cn(
-        "absolute inset-0 size-full",
-        section.imageFit === "cover"
-          ? "object-cover"
-          : cn("object-contain drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)]", standing ? "object-bottom p-[6%] pb-0" : "p-[8%]"),
-      )}
-    />
-  ) : (
-    // Standing frames let the garment overflow the frame as before; closed shapes keep it inside.
-    !standing && silhouette("bottom-[8%] h-[80%]")
-  );
-
+  const outline = frame.border === "white" ? "rgb(255 255 255 / 0.5)" : frame.border === "none" ? "transparent" : undefined;
   return (
-    <div className="relative min-h-80 md:min-h-[520px]">
-      <div
-        className={cn("absolute", BOX_CLASS[shape.box][frame.align], shape.box === "square" && "aspect-square h-[80%] max-w-[88%]")}
-        style={{ filter: frameShadow(frame.shadow, accent) }}
-      >
-        {shape.radius !== undefined ? (
-          <div
-            className={cn("absolute inset-0 overflow-hidden", stroke && "border")}
-            style={{ borderRadius: shape.radius, borderColor: stroke, background: tint }}
-          >
-            {content}
-          </div>
-        ) : (
-          <>
-            <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `url(#${clipId})`, background: tint }}>
-              {content}
-            </div>
-            <svg aria-hidden className="pointer-events-none absolute inset-0 size-full overflow-visible" viewBox="0 0 1 1" preserveAspectRatio="none">
-              <defs>
-                <clipPath id={clipId} clipPathUnits="objectBoundingBox">
-                  <path d={shape.path} />
-                </clipPath>
-              </defs>
-              {stroke && <path d={shape.path} fill="none" stroke={stroke} strokeWidth={1} vectorEffect="non-scaling-stroke" />}
-            </svg>
-          </>
-        )}
+    <div className={cn("relative flex items-center justify-center px-10 pb-12 md:px-12 md:py-16", JUSTIFY[frame.align])}>
+      <div className="relative aspect-[3/4.2] w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[380px]" style={{ filter: frameShadow(frame.shadow, accent) }}>
+        <HeroFrame
+          className="absolute inset-0"
+          visual={{ shape: frame.shape, effect: frame.effect, fit: section.imageFit }}
+          photo={imageUrl}
+          alt=""
+          accent={accent}
+          outline={outline}
+          active
+          first={false}
+        >
+          <Silhouette
+            kind="panjabi"
+            fill="#d9c39a"
+            stroke="rgba(60,47,25,0.5)"
+            className="absolute inset-x-0 bottom-[4%] mx-auto h-[82%] w-auto drop-shadow-[0_20px_30px_rgba(0,0,0,0.35)]"
+          />
+        </HeroFrame>
       </div>
-      {!imageUrl && standing && silhouette("bottom-[4%] h-[80%]")}
     </div>
   );
 }
