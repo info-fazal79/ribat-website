@@ -81,6 +81,18 @@ const categoriesSection = z.object({
   items: z.array(z.object({ slug: z.string().trim().min(1, "Choose a category").max(80), imageUrl: image })).max(8),
 });
 
+const hexColor = z.string().regex(/^#[0-9a-f]{6}$/i, "Use a hex colour like #123e31");
+/** Video file URL (no data: URIs — videos are too large to embed). */
+const videoUrl = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((v) => v === "" || /^(https?:\/\/|\/)\S+$/.test(v), "Use a /path or a full https:// URL")
+  .default("");
+
+/** Frame shapes for the promo image (see PROMO_SHAPES in editorial-banner.tsx). */
+export const promoShapes = ["mihrab", "moroccan", "pill", "squircle", "octagon", "star", "rectangle"] as const;
+
 const promoSection = z.object({
   id,
   type: z.literal("promo"),
@@ -90,13 +102,48 @@ const promoSection = z.object({
   title: z.string().trim().min(1, "Add a heading").max(160),
   titleBn: short(160),
   body: short(600),
+  /** Text colour scheme, and the accent used for the badge, button, frame outline and pattern. */
+  text: z.enum(["light", "dark"]).default("light"),
+  accent: hexColor.default("#d8c08a"),
   ctaLabel: short(40),
   ctaUrl: optionalLink,
+  ctaStyle: z.enum(["solid", "outline", "link"]).default("solid"),
   note: short(120),
-  /** Empty = the drawn garment inside the arch. */
+  /** Defaults reproduce the original emerald banner with the gold pattern. */
+  background: z
+    .object({
+      type: z.enum(["solid", "gradient", "image", "video"]).default("gradient"),
+      color: hexColor.default("#1f3b33"),
+      color2: hexColor.default("#0b1a16"),
+      gradient: z.enum(["linear", "radial"]).default("linear"),
+      /** Linear gradient angle in degrees. */
+      angle: z.number().int().min(0).max(360).default(135),
+      imageUrl: image,
+      size: z.enum(["cover", "contain"]).default("cover"),
+      position: z.enum(["center", "top", "bottom", "left", "right"]).default("center"),
+      videoUrl,
+      /** Poster shown while the video loads. */
+      posterUrl: image,
+      pattern: z.boolean().default(true),
+      overlayColor: hexColor.default("#000000"),
+      /** Overlay opacity over the whole background, 0–100 %. */
+      overlay: z.number().int().min(0).max(100).default(0),
+    })
+    .prefault({}),
+  /** Empty = the drawn garment inside the frame. */
   imageUrl: image,
   imageFit: z.enum(["cover", "contain"]).default("contain"),
+  /** Which side of the banner the image column sits on. */
   imagePosition: z.enum(["right", "left"]).default("right"),
+  frame: z
+    .object({
+      shape: z.enum(promoShapes).default("mihrab"),
+      /** Horizontal placement of the frame inside its column. */
+      align: z.enum(["start", "center", "end"]).default("center"),
+      border: z.enum(["accent", "white", "none"]).default("accent"),
+      shadow: z.enum(["none", "soft", "elevated", "glow"]).default("none"),
+    })
+    .prefault({}),
 });
 
 /** "trending" = best sellers (recent orders) first, then the rest of the catalog. */

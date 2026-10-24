@@ -13,14 +13,15 @@ import {
   Type,
   type LucideIcon,
 } from "lucide-react";
-import { Switch } from "@/components/admin/appearance/controls";
+import { ColorInput, Switch } from "@/components/admin/appearance/controls";
 import { Field, ListEditor, TextArea, TextInput, Toggle } from "@/components/admin/landing-builder/fields";
 import { MediaField } from "@/components/admin/media/media-field";
+import { PROMO_SHAPES } from "@/components/storefront/home/editorial-banner";
 import { valuePropIconMap } from "@/components/storefront/home/home-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { productSources, valuePropIcons, type HomeSection, type HomeSectionOf, type HomeSectionType } from "@/lib/validations/homepage";
+import { productSources, promoShapes, valuePropIcons, type HomeSection, type HomeSectionOf, type HomeSectionType } from "@/lib/validations/homepage";
 
 /*
  * Settings panels for each homepage widget, laid out for the builder's narrow side panel:
@@ -439,25 +440,122 @@ function CategoriesEditor({ section, categories, err, onChange }: EditorProps<"c
 
 function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
   const set = (patch: Partial<typeof section>) => onChange({ ...section, ...patch });
+  const bg = section.background;
+  const setBg = (patch: Partial<typeof bg>) => set({ background: { ...bg, ...patch } });
+  const setFrame = (patch: Partial<typeof section.frame>) => set({ frame: { ...section.frame, ...patch } });
   return (
     <>
-      <Group title="Text & Headings" defaultOpen>
-        <TextInput label="Badge / tag" value={section.eyebrow} placeholder="ATELIER · MADE IN DHAKA" onChange={(eyebrow) => set({ eyebrow })} />
-        <TextArea label="Headline (line breaks are kept)" rows={2} value={section.title} placeholder={"The Raw Silk\nCollection"} error={err("title")} onChange={(title) => set({ title })} />
-        <TextInput label="Bengali line" bengali value={section.titleBn} placeholder="রাজশাহীর সিল্ক, ঢাকার কারিগরের হাতে।" onChange={(titleBn) => set({ titleBn })} />
+      <Group title="Content & Typography" defaultOpen>
+        <TextInput label="Eyebrow / atelier badge" value={section.eyebrow} placeholder="ATELIER · MADE IN DHAKA" onChange={(eyebrow) => set({ eyebrow })} />
+        <TextArea label="Heading (line breaks are kept)" rows={2} value={section.title} placeholder={"The Raw Silk\nCollection"} error={err("title")} onChange={(title) => set({ title })} />
+        <TextInput label="Bengali subtitle" bengali value={section.titleBn} placeholder="রাজশাহীর সিল্ক, ঢাকার কারিগরের হাতে।" onChange={(titleBn) => set({ titleBn })} />
         <TextArea label="Description" rows={4} value={section.body} onChange={(body) => set({ body })} />
-      </Group>
-      <Group title="Layout & Display">
         <Choice
-          label="Image side"
-          value={section.imagePosition}
+          label="Text colour"
+          hint="Use dark text on light backgrounds."
+          value={section.text}
           options={[
-            { value: "right", label: "Image right" },
-            { value: "left", label: "Image left" },
+            { value: "light", label: "Light text" },
+            { value: "dark", label: "Dark text" },
           ]}
-          onChange={(imagePosition) => set({ imagePosition })}
+          onChange={(text) => set({ text })}
         />
-        <Field label="Image in the arch (optional)" hint="Leave empty for the drawn garment." error={err("imageUrl")}>
+        <ColorInput label="Accent (badge, button, outline, pattern)" value={section.accent} error={err("accent")} onChange={(accent) => set({ accent })} />
+      </Group>
+      <Group title="Background & Atmosphere">
+        <Choice
+          label="Background type"
+          value={bg.type}
+          options={[
+            { value: "solid", label: "Solid" },
+            { value: "gradient", label: "Gradient" },
+            { value: "image", label: "Image" },
+            { value: "video", label: "Video" },
+          ]}
+          // Photos and video usually need some darkening for the text to stay readable.
+          onChange={(type) => setBg({ type, ...((type === "image" || type === "video") && bg.overlay === 0 ? { overlay: 40 } : {}) })}
+        />
+        {bg.type === "gradient" ? (
+          <>
+            <ColorInput label="Start colour" value={bg.color} error={err("background.color")} onChange={(color) => setBg({ color })} />
+            <ColorInput label="End colour" value={bg.color2} error={err("background.color2")} onChange={(color2) => setBg({ color2 })} />
+            <Choice
+              label="Gradient style"
+              value={bg.gradient}
+              options={[
+                { value: "linear", label: "Linear" },
+                { value: "radial", label: "Radial glow" },
+              ]}
+              onChange={(gradient) => setBg({ gradient })}
+            />
+            {bg.gradient === "linear" && (
+              <Field label={`Angle — ${bg.angle}°`} hint="0° = bottom → top, 90° = left → right, 135° = diagonal.">
+                <input type="range" min={0} max={360} step={15} value={bg.angle} onChange={(e) => setBg({ angle: Number(e.target.value) })} className="w-full accent-primary" />
+              </Field>
+            )}
+          </>
+        ) : (
+          <ColorInput
+            label={bg.type === "solid" ? "Colour" : "Fallback colour (while loading)"}
+            value={bg.color}
+            error={err("background.color")}
+            onChange={(color) => setBg({ color })}
+          />
+        )}
+        {bg.type === "image" && (
+          <>
+            <Field label="Background image" hint="Wide landscape photo, at least 1600px." error={err("background.imageUrl")}>
+              <MediaField stacked value={bg.imageUrl} onChange={(imageUrl) => setBg({ imageUrl })} previewClassName="h-28" />
+            </Field>
+            <Choice
+              label="Image size"
+              value={bg.size}
+              options={[
+                { value: "cover", label: "Cover" },
+                { value: "contain", label: "Contain" },
+              ]}
+              onChange={(size) => setBg({ size })}
+            />
+            <SelectField label="Image position" value={bg.position} onChange={(v) => setBg({ position: v as typeof bg.position })}>
+              <option value="center">Center</option>
+              <option value="top">Top</option>
+              <option value="bottom">Bottom</option>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </SelectField>
+          </>
+        )}
+        {bg.type === "video" && (
+          <>
+            <TextInput
+              label="Video URL (MP4 / WebM)"
+              value={bg.videoUrl}
+              placeholder="https://…/banner.mp4"
+              hint="Plays muted, looping and inline. Keep it short and under ~8 MB."
+              error={err("background.videoUrl")}
+              onChange={(videoUrl) => setBg({ videoUrl })}
+            />
+            <Field label="Poster image (optional)" hint="Shown while the video loads." error={err("background.posterUrl")}>
+              <MediaField stacked value={bg.posterUrl} onChange={(posterUrl) => setBg({ posterUrl })} previewClassName="h-24" />
+            </Field>
+          </>
+        )}
+        <Switch checked={bg.pattern} onChange={(pattern) => setBg({ pattern })} label="Islamic geometric pattern" description="Drawn in the accent colour over the background." />
+        <ColorInput label="Overlay colour" value={bg.overlayColor} error={err("background.overlayColor")} onChange={(overlayColor) => setBg({ overlayColor })} />
+        <div className="flex flex-wrap gap-1.5">
+          {OVERLAY_PRESETS.map((p) => (
+            <Button key={p.color} type="button" variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setBg({ overlayColor: p.color })}>
+              <span className="size-3 rounded-full border" style={{ background: p.color }} />
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        <Field label={`Overlay opacity — ${bg.overlay}%`} hint="Raise it to keep text readable over bright images or video.">
+          <input type="range" min={0} max={100} step={5} value={bg.overlay} onChange={(e) => setBg({ overlay: Number(e.target.value) })} className="w-full accent-primary" />
+        </Field>
+      </Group>
+      <Group title="Featured Media & Frame">
+        <Field label="Featured image (optional)" hint="Leave empty for the drawn garment." error={err("imageUrl")}>
           <MediaField stacked value={section.imageUrl} onChange={(imageUrl) => set({ imageUrl })} previewClassName="h-36" />
         </Field>
         {section.imageUrl && (
@@ -471,8 +569,81 @@ function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
             onChange={(imageFit) => set({ imageFit })}
           />
         )}
+        <Field label="Frame shape">
+          <div role="radiogroup" aria-label="Frame shape" className="grid grid-cols-4 gap-1.5">
+            {promoShapes.map((shape) => {
+              const selected = section.frame.shape === shape;
+              const meta = PROMO_SHAPES[shape];
+              return (
+                <button
+                  key={shape}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setFrame({ shape })}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-md border bg-background px-1 py-2 text-[10px] leading-tight text-muted-foreground transition-colors hover:text-foreground",
+                    selected && "border-primary text-foreground ring-1 ring-primary",
+                  )}
+                >
+                  <svg viewBox="0 0 1 1" preserveAspectRatio="none" className={cn("h-9 overflow-visible", meta.box === "square" ? "w-9" : "w-[1.6rem]")} aria-hidden>
+                    <path
+                      d={meta.path}
+                      fill={selected ? "color-mix(in oklch, currentColor 15%, transparent)" : "none"}
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeDasharray={shape === "rectangle" ? "3 2" : undefined}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
+                  <span className="text-center">{meta.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+        <Choice
+          label="Image side"
+          value={section.imagePosition}
+          options={[
+            { value: "right", label: "Right" },
+            { value: "left", label: "Left" },
+          ]}
+          onChange={(imagePosition) => set({ imagePosition })}
+        />
+        <Choice
+          label="Frame alignment in its column"
+          value={section.frame.align}
+          options={[
+            { value: "start", label: "Left" },
+            { value: "center", label: "Centered" },
+            { value: "end", label: "Right" },
+          ]}
+          onChange={(align) => setFrame({ align })}
+        />
+        <Choice
+          label="Outline"
+          value={section.frame.border}
+          options={[
+            { value: "accent", label: "Accent (gold)" },
+            { value: "white", label: "White" },
+            { value: "none", label: "None" },
+          ]}
+          onChange={(border) => setFrame({ border })}
+        />
+        <Choice
+          label="Shadow / glow"
+          value={section.frame.shadow}
+          options={[
+            { value: "none", label: "None" },
+            { value: "soft", label: "Soft" },
+            { value: "elevated", label: "Elevated" },
+            { value: "glow", label: "Accent glow" },
+          ]}
+          onChange={(shadow) => setFrame({ shadow })}
+        />
       </Group>
-      <Group title="Button & Links">
+      <Group title="Button & Call to Action">
         <LinkFields
           label={section.ctaLabel}
           url={section.ctaUrl}
@@ -483,11 +654,27 @@ function PromoEditor({ section, err, onChange }: EditorProps<"promo">) {
           urlPath="ctaUrl"
           labelPlaceholder="Discover the collection"
         />
+        <Choice
+          label="Button style"
+          value={section.ctaStyle}
+          options={[
+            { value: "solid", label: "Solid" },
+            { value: "outline", label: "Outline" },
+            { value: "link", label: "Text link" },
+          ]}
+          onChange={(ctaStyle) => set({ ctaStyle })}
+        />
         <TextInput label="Small note beside the button" value={section.note} placeholder="From ৳4,850 · Limited run of 200" onChange={(note) => set({ note })} />
       </Group>
     </>
   );
 }
+
+const OVERLAY_PRESETS = [
+  { label: "Emerald", color: "#0b1a16" },
+  { label: "Black", color: "#000000" },
+  { label: "Navy", color: "#0f1b2d" },
+];
 
 function ProductsEditor({ section, categories, err, onChange }: EditorProps<"products"> & { categories: Category[] }) {
   const set = (patch: Partial<typeof section>) => onChange({ ...section, ...patch });
