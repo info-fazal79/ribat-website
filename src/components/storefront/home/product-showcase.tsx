@@ -73,7 +73,7 @@ export function ProductShowcase({ section, products }: { section: HomeSectionOf<
 
       <div className={cn("grid grid-cols-2 gap-x-4 gap-y-12 md:gap-x-6", desktopCols[section.columns])}>
         {visible.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} buttons={section.mobileButtons} />
         ))}
       </div>
 

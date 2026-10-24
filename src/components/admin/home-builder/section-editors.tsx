@@ -18,6 +18,7 @@ import { Field, ListEditor, TextArea, TextInput, Toggle } from "@/components/adm
 import { MediaField } from "@/components/admin/media/media-field";
 import { HERO_EFFECTS, HERO_SHAPES } from "@/components/storefront/home/hero-frame";
 import { valuePropIconMap } from "@/components/storefront/home/home-icons";
+import type { CardButtons } from "@/components/storefront/product-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -322,6 +323,25 @@ function SourcePicker({
         </SelectField>
       )}
     </>
+  );
+}
+
+/** Product card buttons on narrow cards (phones, and 5–6 column grids). */
+function MobileSettings({ value, onChange }: { value: CardButtons; onChange: (v: CardButtons) => void }) {
+  return (
+    <Group title="Mobile Settings">
+      <Choice
+        label="Mobile button style"
+        hint="Used when a card is too narrow for both labelled buttons; wider cards always show Quick Add and Buy Now."
+        value={value}
+        options={[
+          { value: "compact", label: "Compact (cart icon + Buy Now)" },
+          { value: "stacked", label: "Stacked (2 rows)" },
+          { value: "single", label: "Buy Now only" },
+        ]}
+        onChange={onChange}
+      />
+    </Group>
   );
 }
 
@@ -725,6 +745,7 @@ function ProductsEditor({ section, categories, err, onChange }: EditorProps<"pro
           ))}
         </div>
       </Group>
+      <MobileSettings value={section.mobileButtons} onChange={(mobileButtons) => set({ mobileButtons })} />
       <Group title="Button & Links">
         <Choice
           label="More products"
@@ -785,6 +806,7 @@ function ProductCarouselEditor({ section, categories, err, onChange }: EditorPro
           onChange={(interval) => set({ interval })}
         />
       </Group>
+      <MobileSettings value={section.mobileButtons} onChange={(mobileButtons) => set({ mobileButtons })} />
       <Group title="Button & Links">
         <LinkFields
           label={section.viewAllLabel}

@@ -158,6 +158,8 @@ const promoSection = z.object({
 /** "trending" = best sellers (recent orders) first, then the rest of the catalog. */
 export const productSources = ["featured", "trending", "all", "category"] as const;
 export const productDisplays = ["viewAll", "loadMore", "pagination", "none"] as const;
+/** Product card buttons on narrow cards: cart icon + Buy Now, both stacked, or Buy Now only. */
+export const cardButtonStyles = ["compact", "stacked", "single"] as const;
 
 const productsSection = z.object({
   id,
@@ -172,6 +174,7 @@ const productsSection = z.object({
   display: z.enum(productDisplays).default("viewAll"),
   viewAllLabel: short(40),
   viewAllUrl: optionalLink,
+  mobileButtons: z.enum(cardButtonStyles).default("compact"),
   /** Category filter tabs above the grid. */
   tabs: z.boolean().default(true),
 });
@@ -189,6 +192,7 @@ const productCarouselSection = z.object({
   autoplay: z.boolean().default(true),
   /** Seconds between autoplay steps. */
   interval: z.number().min(2).max(15).default(5),
+  mobileButtons: z.enum(cardButtonStyles).default("compact"),
   viewAllLabel: short(40),
   viewAllUrl: optionalLink,
 });

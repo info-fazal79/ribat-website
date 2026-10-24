@@ -10,10 +10,13 @@ import { ProductArt } from "@/components/storefront/art";
 import { StarRating } from "@/components/storefront/star-rating";
 import { useVariantSelection } from "@/components/storefront/use-variant-selection";
 import type { CatalogProduct } from "@/lib/catalog/types";
+import type { cardButtonStyles } from "@/lib/validations/homepage";
 import { discountPercent, formatBDT } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-export function ProductCard({ product }: { product: CatalogProduct }) {
+export type CardButtons = (typeof cardButtonStyles)[number];
+
+export function ProductCard({ product, buttons = "compact" }: { product: CatalogProduct; buttons?: CardButtons }) {
   const router = useRouter();
   const sel = useVariantSelection(product);
   const [sizeError, setSizeError] = useState(false);
@@ -31,7 +34,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
   }
 
   return (
-    <article className="group/card flex flex-col">
+    <article className="group/card @container flex flex-col">
       <div className="group/art relative">
         <Link href={href} aria-label={product.name} className="block">
           {product.images[0] ? (
@@ -111,7 +114,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
           {product.nameBn && <p className="font-bengali text-xs text-muted-foreground">{product.nameBn}</p>}
         </Link>
 
-        <div className="flex items-baseline gap-2">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="text-base font-semibold">{formatBDT(price)}</span>
           {compareAt && compareAt > price && (
             <>
@@ -177,20 +180,29 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
           </div>
         )}
 
-        <div className="mt-auto grid grid-cols-2 gap-2 pt-2">
+        {/* Narrow cards (under 15rem — phones, 5–6 column grids) use the `buttons` layout; wider ones show both labelled buttons. */}
+        <div className={cn("mt-auto flex gap-2 pt-2", buttons === "stacked" && "flex-col gap-1.5 @[15rem]:flex-row @[15rem]:gap-2")}>
           <Button
             variant="outline"
             disabled={sel.soldOut}
-            className="h-10 rounded-none text-xs tracking-wider uppercase"
+            aria-label={buttons === "compact" ? "Quick add" : undefined}
+            title="Quick add"
+            className={cn(
+              "h-10 rounded-none text-xs tracking-wider uppercase @[15rem]:flex-1",
+              buttons === "compact" && "w-10 px-0 @[15rem]:w-auto @[15rem]:px-2.5",
+              buttons === "stacked" && "w-full @[15rem]:w-auto",
+              buttons === "single" && "hidden @[15rem]:inline-flex",
+            )}
             onClick={() => {
               if (add(true)) toast.success(`${product.name} added to bag`);
             }}
           >
-            <ShoppingBag /> Quick Add
+            <ShoppingBag />
+            <span className={cn(buttons === "compact" && "hidden @[15rem]:inline")}>Quick Add</span>
           </Button>
           <Button
             disabled={sel.soldOut}
-            className="h-10 rounded-none text-xs tracking-wider uppercase"
+            className="h-10 flex-1 rounded-none text-xs tracking-wider uppercase"
             onClick={() => {
               if (add(false)) router.push("/cart");
             }}

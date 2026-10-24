@@ -80,7 +80,7 @@ export function ProductCarousel({ section, products }: { section: HomeSectionOf<
       >
         {items.map((product) => (
           <div key={product.id} className={cn("w-[62%] shrink-0 snap-start sm:w-[38%]", cardWidth[perView])}>
-            <ProductCard product={product} />
+            <ProductCard product={product} buttons={section.mobileButtons} />
           </div>
         ))}
       </div>
