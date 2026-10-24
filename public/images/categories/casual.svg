@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="1200" height="1200" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="78%"><stop offset="0" stop-color="#454a2c"/><stop offset="1" stop-color="#16180d"/></radialGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="40%"><stop offset="0" stop-color="#d8c08a" stop-opacity="0.16"/><stop offset="1" stop-color="#d8c08a" stop-opacity="0"/></radialGradient>
+    <pattern id="khatam" width="60" height="60" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke="#d8c08a" stroke-width="0.8" opacity="0.11"><rect x="18" y="18" width="24" height="24"/><rect x="18" y="18" width="24" height="24" transform="rotate(45 30 30)"/><path d="M0 30H13M47 30H60M30 0V13M30 47V60"/></g>
+    </pattern>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <rect width="600" height="600" fill="url(#khatam)"/>
+  <rect width="600" height="600" fill="url(#glow)"/>
+  <g fill="none" stroke="#d8c08a">
+    <path d="M178 440 V210 A122 122 0 0 1 422 210 V440" stroke-opacity="0.16"/>
+    <path d="M192 440 V214 A108 108 0 0 1 408 214 V440" stroke-opacity="0.38" stroke-width="1.5"/>
+  </g>
+  <g fill="none" stroke="#e3cd96" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M300 118 V108 Q300 98 309 95 Q318 92 318 82 Q318 72 308 72 Q298 72 298 82" stroke-width="2"/>
+      <path d="M300 118 L236 150 H364 Z" stroke-width="1.8" opacity="0.8"/>
+      <path d="M284 150 L246 162 L214 214 L240 230 L256 208 L256 336 Q300 352 344 336 L344 208 L360 230 L386 214 L354 162 L316 150"/>
+      <path d="M284 150 Q300 144 316 150 L316 160 Q300 154 284 160 Z"/>
+      <path d="M300 160 V343"/><circle cx="300" cy="182" r="2.2" fill="#e3cd96" stroke="none"/><circle cx="300" cy="210" r="2.2" fill="#e3cd96" stroke="none"/><circle cx="300" cy="238" r="2.2" fill="#e3cd96" stroke="none"/><circle cx="300" cy="266" r="2.2" fill="#e3cd96" stroke="none"/><circle cx="300" cy="294" r="2.2" fill="#e3cd96" stroke="none"/>
+      <path d="M318 196 H338 V218 H318 Z" stroke-width="1.4" opacity="0.8"/>
+      <path d="M220 205 L243 219 M357 219 L380 205" stroke-width="1.4" opacity="0.6"/></g>
+</svg>

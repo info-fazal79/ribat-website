@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="1200" height="1200" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="78%"><stop offset="0" stop-color="#1d4a3d"/><stop offset="1" stop-color="#0b1f19"/></radialGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="40%"><stop offset="0" stop-color="#d8c08a" stop-opacity="0.16"/><stop offset="1" stop-color="#d8c08a" stop-opacity="0"/></radialGradient>
+    <pattern id="khatam" width="60" height="60" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke="#d8c08a" stroke-width="0.8" opacity="0.11"><rect x="18" y="18" width="24" height="24"/><rect x="18" y="18" width="24" height="24" transform="rotate(45 30 30)"/><path d="M0 30H13M47 30H60M30 0V13M30 47V60"/></g>
+    </pattern>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <rect width="600" height="600" fill="url(#khatam)"/>
+  <rect width="600" height="600" fill="url(#glow)"/>
+  <g fill="none" stroke="#d8c08a">
+    <path d="M178 440 V210 A122 122 0 0 1 422 210 V440" stroke-opacity="0.16"/>
+    <path d="M192 440 V214 A108 108 0 0 1 408 214 V440" stroke-opacity="0.38" stroke-width="1.5"/>
+  </g>
+  <g fill="none" stroke="#e3cd96" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M285 134 L240 150 L205 265 L228 272 L252 192 L248 395 L352 395 L348 192 L372 272 L395 265 L360 150 L315 134"/>
+      <path d="M285 128 Q300 122 315 128 L315 140 Q300 134 285 140 Z"/>
+      <path d="M300 140 V222"/><circle cx="300" cy="158" r="2.6" fill="#e3cd96" stroke="none"/><circle cx="300" cy="178" r="2.6" fill="#e3cd96" stroke="none"/><circle cx="300" cy="198" r="2.6" fill="#e3cd96" stroke="none"/>
+      <path d="M211 250 L233 257 M367 257 L389 250" stroke-width="1.4" opacity="0.6"/>
+      <path d="M252 378 H348 M253 384 H347" stroke-width="1.4" opacity="0.5"/>
+      <path d="M258 395 L256 352 M342 395 L344 352" stroke-width="1.4" opacity="0.6"/>
+      <g stroke-width="1.2" opacity="0.7"><rect x="291" y="291" width="18" height="18"/><rect x="291" y="291" width="18" height="18" transform="rotate(45 300 300)"/></g></g>
+</svg>

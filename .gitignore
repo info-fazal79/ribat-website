@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Source product photos (copied to public/products by `npm run db:import:products`)
 /images/
+
+# demo catalog seed backups (product statuses, category images)
+/prisma/backups/

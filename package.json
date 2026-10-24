@@ -18,6 +18,7 @@
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "db:import:products": "tsx prisma/import-products.ts",
     "db:seed:home": "tsx prisma/seed-home-sections.ts",
+    "db:seed:demo-catalog": "tsx prisma/seed-demo-catalog.ts",
     "admin:reset-password": "tsx prisma/reset-admin-password.ts"
   },
   "dependencies": {

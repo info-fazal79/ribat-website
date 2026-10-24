@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="1200" height="1200" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="78%"><stop offset="0" stop-color="#4a3020"/><stop offset="1" stop-color="#170e08"/></radialGradient>
+    <radialGradient id="glow" cx="50%" cy="45%" r="40%"><stop offset="0" stop-color="#d8c08a" stop-opacity="0.16"/><stop offset="1" stop-color="#d8c08a" stop-opacity="0"/></radialGradient>
+    <pattern id="khatam" width="60" height="60" patternUnits="userSpaceOnUse">
+      <g fill="none" stroke="#d8c08a" stroke-width="0.8" opacity="0.11"><rect x="18" y="18" width="24" height="24"/><rect x="18" y="18" width="24" height="24" transform="rotate(45 30 30)"/><path d="M0 30H13M47 30H60M30 0V13M30 47V60"/></g>
+    </pattern>
+  </defs>
+  <rect width="600" height="600" fill="url(#bg)"/>
+  <rect width="600" height="600" fill="url(#khatam)"/>
+  <rect width="600" height="600" fill="url(#glow)"/>
+  <g fill="none" stroke="#d8c08a">
+    <path d="M178 440 V210 A122 122 0 0 1 422 210 V440" stroke-opacity="0.16"/>
+    <path d="M192 440 V214 A108 108 0 0 1 408 214 V440" stroke-opacity="0.38" stroke-width="1.5"/>
+  </g>
+  <g fill="none" stroke="#e3cd96" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M300 98 L308 114 L300 130 L292 114 Z"/>
+      <path d="M290 130 H310 V170 H290 Z"/>
+      <path d="M293 170 H307 V184 H293 Z"/>
+      <path d="M300 184 L346 214 L352 330 L322 380 H278 L248 330 L254 214 Z"/>
+      <path d="M300 184 V380 M254 214 L300 236 L346 214 M248 330 L300 312 L352 330" stroke-width="1.4" opacity="0.55"/>
+      <path d="M251 268 Q300 280 349 268" stroke-width="1.4" opacity="0.8"/>
+      <g stroke-width="1.4" opacity="0.9"><path d="M372 150 V170 M362 160 H382" stroke-width="1.4" opacity="0.9"/><path d="M228 196 V210 M221 203 H235" stroke-width="1.4" opacity="0.7"/><path d="M378 300 V312 M372 306 H384" stroke-width="1.4" opacity="0.6"/></g></g>
+</svg>
